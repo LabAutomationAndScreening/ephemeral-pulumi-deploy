@@ -28,12 +28,12 @@ def generate_backend_url(
     *,
     backend_bucket: str,
     aws_account_id: str,
-    github_repo_name: str,
+    repo_name: str,
     pulumi_project_name: str,
     bucket_region: str = "us-east-1",
 ) -> str:
     """Create the backend URL to store the state."""
-    return f"s3://{backend_bucket}/{aws_account_id}/{github_repo_name}/{pulumi_project_name}?region={bucket_region}"
+    return f"s3://{backend_bucket}/{aws_account_id}/{repo_name}/{pulumi_project_name}?region={bucket_region}"
 
 
 AWS_ACCOUNT_ID_LENGTH = 12
@@ -107,6 +107,8 @@ def get_env_from_cli_input(cli_stack_name: str) -> str:
         return "prod"
     if name.startswith("mod"):
         return "modl"
+    if name.startswith("stag"):
+        return "stag"
 
     return "dev"
 
@@ -181,7 +183,9 @@ def get_config_int(key: str) -> int:
     return int(value)
 
 
-def get_stack(*, stack_name: str, pulumi_program: PulumiFn, stack_config: dict[str, Any]) -> Stack:
+def get_stack(
+    *, stack_name: str, pulumi_program: PulumiFn, stack_config: dict[str, Any], aws_home_region: str = "us-east-1"
+) -> Stack:
     env = get_env_from_cli_input(stack_name)
     project_name = stack_config["proj:pulumi_project_name"]
     github_repo_name = stack_config["proj:github_repo_name"]
@@ -190,9 +194,8 @@ def get_stack(*, stack_name: str, pulumi_program: PulumiFn, stack_config: dict[s
     fully_qualified_stack_name = f"{project_name}/{stack_name}"
 
     session = boto3.Session()
-    default_cloud_region = "us-east-1"
     sts_client = session.client("sts")
-    ssm_client = session.client("ssm", region_name=default_cloud_region)
+    ssm_client = session.client("ssm", region_name=aws_home_region)
 
     account_id = sts_client.get_caller_identity()["Account"]
     # account_id is a `str` when returned from `boto` and ConfigValue stores a `str`. However it is somehow an `int` when fetched back by get_config.
@@ -208,7 +211,7 @@ def get_stack(*, stack_name: str, pulumi_program: PulumiFn, stack_config: dict[s
     kms_key_id = kms_key_id_param["Value"]
     stack_config["proj:kms_key_id"] = ConfigValue(value=kms_key_id)
 
-    secrets_provider = f"awskms:///{kms_key_id}?region={default_cloud_region}"  # TODO: add context parameters https://www.pulumi.com/docs/iac/concepts/secrets/
+    secrets_provider = f"awskms:///{kms_key_id}?region={aws_home_region}"  # TODO: add context parameters https://www.pulumi.com/docs/iac/concepts/secrets/
     logger.info("Stack is: %s", fully_qualified_stack_name)
     project_runtime_info = ProjectRuntimeInfo(  # I have no idea what this does or if it is necessary, but this was copied off of a template
         name="python", options={"virtualenv": "venv"}
@@ -216,7 +219,7 @@ def get_stack(*, stack_name: str, pulumi_program: PulumiFn, stack_config: dict[s
     backend_url = generate_backend_url(
         backend_bucket=backend_bucket,
         aws_account_id=account_id,
-        github_repo_name=github_repo_name,
+        repo_name=github_repo_name,
         pulumi_project_name=project_name,
     )
 
@@ -240,26 +243,19 @@ def get_stack(*, stack_name: str, pulumi_program: PulumiFn, stack_config: dict[s
     )
 
 
-def common_tags(*, name: str = "", git_repository_url: str | None = None) -> dict[str, str]:
+def common_tags() -> dict[str, str]:
     """Create common tags that all resources should have."""
-    if git_repository_url is None:
-        git_repository_url = get_config_str("proj:git_repository_url")
-
     return {
-        "git-repository-url": git_repository_url,
+        "git-repository-url": get_config_str("proj:git_repository_url"),
         "managed-by": "pulumi",
         "stack-name": pulumi.get_stack(),
         "pulumi-project-name": pulumi.get_project(),
-        "Name": name if name != "" else pulumi.get_stack(),
     }
 
 
-def common_tags_native(*, name: str = "", git_repository_url: str | None = None) -> list[TagArgs]:
+def common_tags_native() -> list[TagArgs]:
     """Generate tags in the format expected in AWS Native."""
-    tags = common_tags(
-        name=name,
-        git_repository_url=git_repository_url,
-    )
+    tags = common_tags()
     native_tags: list[TagArgs] = []
     for key, value in tags.items():
         native_tags.append(TagArgs(key=key, value=value))
