@@ -1,0 +1,48 @@
+[project]
+name = "ephemeral-pulumi-deploy"
+version = "0.1.0"
+description = "Library for facilitating easy deployment of ephemeral pulumi stacks"
+authors = [
+    {name = "Eli Fine"},
+
+]
+readme = "README.md"
+requires-python = ">=3.12.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+
+    "Programming Language :: Python :: 3.12",
+
+    "Programming Language :: Python :: 3.13",
+
+]
+dependencies = [
+
+]
+
+
+[dependency-groups]
+dev = [
+    # Specific to this template
+
+
+    # Managed by upstream template
+    "pyright>=1.1.391",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "pytest-randomly>=3.16.0",
+    "sphinx==8.1.3",
+]
+
+[tool.uv]
+package = true
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple/"
+publish-url = "https://upload.pypi.org/legacy/"
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
