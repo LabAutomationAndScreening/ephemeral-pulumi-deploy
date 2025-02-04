@@ -625,7 +625,7 @@ wheels = [
 
 [[package]]
 name = "ephemeral-pulumi-deploy"
-version = "0.1.0"
+version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
@@ -656,7 +656,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "boto3-stubs", extras = ["all"], specifier = ">=1.36.3" },
-    { name = "pyright", specifier = ">=1.1.391" },
+    { name = "pyright", specifier = ">=1.1.393" },
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "pytest-cov", specifier = ">=6.0.0" },
     { name = "pytest-mock", specifier = ">=3.14" },
