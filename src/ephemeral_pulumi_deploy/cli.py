@@ -41,7 +41,7 @@ def run_cli(*, stack_config: dict[str, Any], pulumi_program: PulumiFn) -> None:
 
     # if destroy then teardown and exit
     if args.destroy:
-        destroy_response = stack.destroy()
+        destroy_response = stack.destroy(on_output=print)
         destroy_response_str = result_to_str(destroy_response)
         logger.info(destroy_response_str)
         # I see no reason not to completely remove the stack and history after destroying it. There is no returned output from the command https://github.com/pulumi/pulumi/blob/06ba63bb57e90706c1550861b785075ae860144a/sdk/python/lib/pulumi/automation/_local_workspace.py#L277
