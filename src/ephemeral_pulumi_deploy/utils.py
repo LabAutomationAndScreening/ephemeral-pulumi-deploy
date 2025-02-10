@@ -64,9 +64,7 @@ def get_aws_region() -> str:
 SAFE_MAX_AWS_NAME_LENGTH = 56
 
 
-def append_resource_suffix(
-    resource_name: str = "",
-) -> str:
+def append_resource_suffix(resource_name: str = "", max_length: int = SAFE_MAX_AWS_NAME_LENGTH) -> str:
     """Append the suffix to the resource name.
 
     {resource_name}--{project_name}--{stack_name}
@@ -86,9 +84,9 @@ def append_resource_suffix(
     else:
         resource_name = RESOURCE_SUFFIX_DELIMITER.join((project_name, stack_name.lower()))
 
-    if len(resource_name) > SAFE_MAX_AWS_NAME_LENGTH:
+    if len(resource_name) > max_length:
         raise ValueError(  # noqa: TRY003 # this doesn't warrant a custom exception
-            f"Error creating aws resource name from template.\n{resource_name} is too long: {len(resource_name)} characters."
+            f"Error creating aws resource name from template.\n{resource_name} is too long (limit is {max_length}): {len(resource_name)} characters."
         )
     return resource_name
 
@@ -246,9 +244,9 @@ def get_stack(
 def common_tags() -> dict[str, str]:
     """Create common tags that all resources should have."""
     return {
-        "git-repository-url": get_config_str("proj:git_repository_url"),
-        "managed-by": "pulumi",
-        "stack-name": pulumi.get_stack(),
+        "iac-git-repository-url": get_config_str("proj:git_repository_url"),
+        "managed-via-iac-by": "pulumi",
+        "iac-stack-name": pulumi.get_stack(),
         "pulumi-project-name": pulumi.get_project(),
     }
 
@@ -270,5 +268,5 @@ _ = parser.add_argument(
     help="Pulumi stack name.",
 )
 
-_ = parser.add_argument("--apply", action="store_true")
+_ = parser.add_argument("--up", action="store_true")
 _ = parser.add_argument("--destroy", action="store_true")
