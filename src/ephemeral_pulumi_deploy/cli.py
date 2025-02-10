@@ -52,7 +52,7 @@ def run_cli(*, stack_config: dict[str, Any], pulumi_program: PulumiFn) -> None:
         "on_output": print,
         # 'on_event': print   # TODO: figure out how to log these? Seems too verbose to print to stdout though
     }
-    if args.apply:
+    if args.up:
         up_response = stack.up(**up_and_preview_kwargs)
         up_response_str = result_to_str(up_response)
         logger.info(up_response_str)
