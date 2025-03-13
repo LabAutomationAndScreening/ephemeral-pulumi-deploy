@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier
-_commit: v0.0.7-12-gb1120ca
+_commit: v0.0.7-29-g54327d4
 _src_path: gh:LabAutomationAndScreening/copier-python-package-template
 create_docs: false
 description: Library for facilitating easy deployment of ephemeral pulumi stacks
