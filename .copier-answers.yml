@@ -1,16 +1,20 @@
 # Changes here will be overwritten by Copier
-_commit: v0.0.5-2-gf12fffe
+_commit: v0.0.7
 _src_path: gh:LabAutomationAndScreening/copier-python-package-template
 create_docs: false
 description: Library for facilitating easy deployment of ephemeral pulumi stacks
 full_repo_url: https://github.com/LabAutomationAndScreening/ephemeral-pulumi-deploy
+is_frozen_executable: false
 package_name: ephemeral-pulumi-deploy
 primary_author: Eli Fine
 python_ci_versions:
 - 3.12.7
-- 3.13.1
+- 3.13.2
 python_version: 3.12.7
 repo_name: ephemeral-pulumi-deploy
+repo_org_name: LabAutomationAndScreening
 ssh_port_number: 54296
+use_codecov: true
 use_windows_in_ci: false
+use_windows_in_exe_ci: false
 

@@ -8,7 +8,6 @@
 [![Downloads](https://pepy.tech/badge/ephemeral-pulumi-deploy)](https://pepy.tech/project/ephemeral-pulumi-deploy)
 [![Python Versions](https://img.shields.io/pypi/pyversions/ephemeral-pulumi-deploy.svg)](https://pypi.org/project/ephemeral-pulumi-deploy/)
 [![Codecov](https://codecov.io/gh/LabAutomationAndScreening/ephemeral-pulumi-deploy/branch/main/graph/badge.svg)](https://codecov.io/gh/LabAutomationAndScreening/ephemeral-pulumi-deploy)
-[![Documentation Status](https://readthedocs.org/projects/ephemeral-pulumi-deploy/badge/?version=latest)](https://ephemeral-pulumi-deploy.readthedocs.io/en/latest/?badge=latest)
 
 # Usage
 Documentation is hosted on [ReadTheDocs](https://ephemeral-pulumi-deploy.readthedocs.io/en/latest/?badge=latest).
