@@ -211,8 +211,8 @@ def get_stack(
 
     secrets_provider = f"awskms:///{kms_key_id}?region={aws_home_region}"  # TODO: add context parameters https://www.pulumi.com/docs/iac/concepts/secrets/
     logger.info("Stack is: %s", fully_qualified_stack_name)
-    project_runtime_info = ProjectRuntimeInfo(  # I have no idea what this does or if it is necessary, but this was copied off of a template
-        name="python", options={"virtualenv": "venv"}
+    project_runtime_info = ProjectRuntimeInfo(  # This seems to be used by Refresh, but not Preview Up or Destroy...unclear why (it was set to an invalid value for a long time, but finally gave an error the first time using Refresh in CI...although locally it still worked fine)
+        name="python", options={"virtualenv": ".venv"}
     )
     backend_url = generate_backend_url(
         backend_bucket=backend_bucket,
@@ -270,3 +270,5 @@ _ = parser.add_argument(
 
 _ = parser.add_argument("--up", action="store_true")
 _ = parser.add_argument("--destroy", action="store_true")
+_ = parser.add_argument("--force-destroy", action="store_true", help="Force destroy of non-test/dev stacks")
+_ = parser.add_argument("--refresh", action="store_true", help="Refresh the state of the stack")

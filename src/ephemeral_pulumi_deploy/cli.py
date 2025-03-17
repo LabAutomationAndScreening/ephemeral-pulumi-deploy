@@ -29,7 +29,7 @@ def run_cli(*, stack_config: dict[str, Any], pulumi_program: PulumiFn) -> None:
 
     env = get_env_from_cli_input(stack_name)
 
-    if (env in PROTECTED_ENVS) and args.destroy:
+    if (env in PROTECTED_ENVS) and args.destroy and not args.force_destroy:
         logger.error(f"Stack {stack_name} can't be destroyed, because it's not a test/dev stack.")
         sys.exit(1)
 
@@ -52,15 +52,17 @@ def run_cli(*, stack_config: dict[str, Any], pulumi_program: PulumiFn) -> None:
         "on_output": print,
         # 'on_event': print   # TODO: figure out how to log these? Seems too verbose to print to stdout though
     }
+
     if args.up:
-        up_response = stack.up(**up_and_preview_kwargs)
-        up_response_str = result_to_str(up_response)
-        logger.info(up_response_str)
+        response = stack.up(**up_and_preview_kwargs)
+    elif args.refresh:
+        response = stack.refresh(on_output=print)
     else:  # plan only
         # TODO: Make use of this feature to guarantee the plan is what is actually executed https://www.pulumi.com/blog/announcing-public-preview-update-plans/
-        preview_response = stack.preview(**up_and_preview_kwargs)
-        preview_response_str = result_to_str(preview_response)
-        logger.info(preview_response_str)
+        response = stack.preview(**up_and_preview_kwargs)
+
+    response_str = result_to_str(response)
+    logger.info(response_str)
 
     try:
         custom_exit_code = os.environ["CUSTOM_PULUMI_OPERATION_EXIT_CODE"]
