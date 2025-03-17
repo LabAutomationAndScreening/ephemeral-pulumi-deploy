@@ -1,4 +1,4 @@
-name: Publish to Production Package Registry
+name: Publish to Staging Package Registry
 
 on:
   workflow_dispatch:
@@ -89,15 +89,13 @@ jobs:
         with:
           python-version: 3.12.7
 
-
       - name: Build package
         run: |
 
           uv build --no-sources
 
 
-
       - name: Publish package
         run: |
 
-          uv publish --verbose --index pypi
+          uv publish --verbose --index testpypi
