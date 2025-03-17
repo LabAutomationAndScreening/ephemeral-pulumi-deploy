@@ -270,3 +270,5 @@ _ = parser.add_argument(
 
 _ = parser.add_argument("--up", action="store_true")
 _ = parser.add_argument("--destroy", action="store_true")
+_ = parser.add_argument("--force-destroy", action="store_true", help="Force destroy of non-test/dev stacks")
+_ = parser.add_argument("--refresh", action="store_true", help="Refresh the state of the stack")
