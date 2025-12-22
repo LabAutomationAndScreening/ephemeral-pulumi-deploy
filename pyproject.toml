@@ -1,6 +1,6 @@
 [project]
 name = "ephemeral-pulumi-deploy"
-version = "0.0.5"
+version = "0.0.6"
 description = "Library for facilitating easy deployment of ephemeral pulumi stacks"
 authors = [
     {name = "Eli Fine"},
@@ -15,13 +15,15 @@ classifiers = [
 
     "Programming Language :: Python :: 3.13",
 
+    "Programming Language :: Python :: 3.14",
+
 ]
 dependencies = [
 
-    "pulumi>=3.190.0",
-    "pulumi-aws>=7.5.0",
-    "pulumi-aws-native>=1.32.0",
-    "boto3>=1.40.9",
+    "pulumi>=3.213.0",
+    "pulumi-aws>=7.15.0",
+    "pulumi-aws-native>=1.45.0",
+    "boto3>=1.42.14",
 
 ]
 
@@ -30,16 +32,14 @@ dependencies = [
 dev = [
     # Specific to this repository
 
-    "boto3-stubs[all]>=1.40.9",
-    "pytest-mock>=3.14",
+    "boto3-stubs[all]>=1.42.14",
+    "pytest-mock>=3.15.1",
 
     # Managed by upstream template
-    "pyright>=1.1.403",
-    "pytest>=8.4.1",
-    "pytest-cov>=6.2.1",
-    "pytest-randomly>=3.16.0",
-
-
+    "pyright>=1.1.407",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-randomly>=4.0.1",
 ]
 
 [tool.setuptools]
