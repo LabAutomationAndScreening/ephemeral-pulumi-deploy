@@ -32,7 +32,7 @@ dependencies = [
 dev = [
     # Specific to this repository
 
-    "boto3-stubs[all]",
+    "boto3-stubs[all]", # version managed by main dependency
     "pytest-mock>=3.15.1",
 
     # Managed by upstream template
