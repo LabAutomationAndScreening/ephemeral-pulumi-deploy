@@ -29,3 +29,15 @@ def test_up_with_refresh_passes_refresh_true_to_up(mocker: MockerFixture):
 
     mock_stack.up.assert_called_once_with(diff=True, on_output=print, refresh=True)
     mock_stack.refresh.assert_not_called()
+
+
+def test_preview_with_refresh_passes_refresh_true_to_preview(mocker: MockerFixture):
+    mock_stack = MagicMock()
+    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, return_value=mock_stack)
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--preview", "--refresh"])
+
+    run_cli(stack_config={}, pulumi_program=MagicMock())
+
+    mock_stack.preview.assert_called_once_with(diff=True, on_output=print, refresh=True)
+    mock_stack.refresh.assert_not_called()
+    mock_stack.up.assert_not_called()
