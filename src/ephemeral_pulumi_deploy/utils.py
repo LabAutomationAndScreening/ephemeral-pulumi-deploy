@@ -276,3 +276,7 @@ _ = parser.add_argument("--cancel", action="store_true", help="Cancel the curren
 _ = parser.add_argument(
     "--preview", action="store_true", help="Preview changes (default when no action flag is provided)"
 )
+_ = parser.add_argument("--outputs", action="store_true", help="Print stack outputs")
+_ = parser.add_argument(
+    "--show-secrets", action="store_true", help="Show secret values when printing outputs (use with --outputs)"
+)

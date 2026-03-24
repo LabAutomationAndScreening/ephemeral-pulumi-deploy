@@ -52,6 +52,14 @@ def run_cli(*, stack_config: dict[str, Any], pulumi_program: PulumiFn) -> None:
         # I see no reason not to completely remove the stack and history after destroying it. There is no returned output from the command https://github.com/pulumi/pulumi/blob/06ba63bb57e90706c1550861b785075ae860144a/sdk/python/lib/pulumi/automation/_local_workspace.py#L277
         stack.workspace.remove_stack(stack_name)
         sys.exit(0)
+
+    if args.outputs:
+        outputs = stack.outputs()
+        for key, output in outputs.items():
+            value = output.value if (not output.secret or args.show_secrets) else "[secret]"
+            print(f"{key}: {value}")  # noqa: T201
+        sys.exit(0)
+
     up_and_preview_kwargs: StackKwargs = {
         "diff": True,
         "on_output": print,
