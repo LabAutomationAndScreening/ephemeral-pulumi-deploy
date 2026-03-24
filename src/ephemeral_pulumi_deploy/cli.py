@@ -39,6 +39,11 @@ def run_cli(*, stack_config: dict[str, Any], pulumi_program: PulumiFn) -> None:
         stack_config=stack_config,
     )
 
+    if args.cancel:
+        stack.cancel()
+        logger.info("Stack update cancelled.")
+        sys.exit(0)
+
     # if destroy then teardown and exit
     if args.destroy:
         destroy_response = stack.destroy(on_output=print)
