@@ -59,7 +59,7 @@ def run_cli(*, stack_config: dict[str, Any], pulumi_program: PulumiFn) -> None:
     }
 
     if args.up:
-        response = stack.up(**up_and_preview_kwargs)
+        response = stack.up(**up_and_preview_kwargs, refresh=args.refresh)
     elif args.refresh:
         response = stack.refresh(on_output=print)
     else:  # plan only
