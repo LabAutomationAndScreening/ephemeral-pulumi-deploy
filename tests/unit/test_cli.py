@@ -1,5 +1,6 @@
 import sys
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 from pytest_mock import MockerFixture
@@ -7,11 +8,13 @@ from pytest_mock import MockerFixture
 import ephemeral_pulumi_deploy.cli as cli_module
 from ephemeral_pulumi_deploy.cli import run_cli
 
+arbitrary_stack_name = str(uuid4())
+
 
 def test_cancel_calls_stack_cancel_and_exits_zero(mocker: MockerFixture):
     mock_stack = MagicMock()
     _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, return_value=mock_stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--cancel"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--cancel"])
 
     with pytest.raises(SystemExit, match="0") as exc_info:
         run_cli(stack_config={}, pulumi_program=MagicMock())
@@ -23,7 +26,7 @@ def test_cancel_calls_stack_cancel_and_exits_zero(mocker: MockerFixture):
 def test_up_without_refresh_passes_refresh_false_to_up(mocker: MockerFixture):
     mock_stack = MagicMock()
     _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, return_value=mock_stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--up"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--up"])
 
     run_cli(stack_config={}, pulumi_program=MagicMock())
 
@@ -33,7 +36,7 @@ def test_up_without_refresh_passes_refresh_false_to_up(mocker: MockerFixture):
 def test_up_with_refresh_passes_refresh_true_to_up(mocker: MockerFixture):
     mock_stack = MagicMock()
     _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, return_value=mock_stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--up", "--refresh"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--up", "--refresh"])
 
     run_cli(stack_config={}, pulumi_program=MagicMock())
 
@@ -44,7 +47,7 @@ def test_up_with_refresh_passes_refresh_true_to_up(mocker: MockerFixture):
 def test_refresh_standalone_calls_stack_refresh(mocker: MockerFixture):
     mock_stack = MagicMock()
     _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, return_value=mock_stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--refresh"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--refresh"])
 
     run_cli(stack_config={}, pulumi_program=MagicMock())
 
@@ -56,7 +59,7 @@ def test_refresh_standalone_calls_stack_refresh(mocker: MockerFixture):
 def test_preview_with_refresh_passes_refresh_true_to_preview(mocker: MockerFixture):
     mock_stack = MagicMock()
     _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, return_value=mock_stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--preview", "--refresh"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--preview", "--refresh"])
 
     run_cli(stack_config={}, pulumi_program=MagicMock())
 
@@ -68,7 +71,7 @@ def test_preview_with_refresh_passes_refresh_true_to_preview(mocker: MockerFixtu
 def test_default_no_flags_calls_preview_with_refresh_false(mocker: MockerFixture):
     mock_stack = MagicMock()
     _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, return_value=mock_stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name])
 
     run_cli(stack_config={}, pulumi_program=MagicMock())
 
@@ -80,14 +83,14 @@ def test_default_no_flags_calls_preview_with_refresh_false(mocker: MockerFixture
 def test_destroy_on_non_protected_stack_destroys_and_removes(mocker: MockerFixture):
     mock_stack = MagicMock()
     _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, return_value=mock_stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--destroy"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--destroy"])
 
     with pytest.raises(SystemExit, match="0") as exc_info:
         run_cli(stack_config={}, pulumi_program=MagicMock())
 
     assert exc_info.value.code == 0
     mock_stack.destroy.assert_called_once_with(on_output=print)
-    mock_stack.workspace.remove_stack.assert_called_once_with("test-stack")
+    mock_stack.workspace.remove_stack.assert_called_once_with(arbitrary_stack_name)
 
 
 def test_destroy_protected_stack_without_force_exits_one(mocker: MockerFixture):
