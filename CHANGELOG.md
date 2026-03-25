@@ -26,6 +26,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Security
 - Describe security fixes or improvements.
 
+
+---
+
+## [0.0.7] - 2026-03-25
+
+### Added
+
+- New command line options to cover common pulumi operations
+  - `--refresh` enabled on both `--preview` and `--up`
+  - `--cancel`
+  - `--outputs` with optional `--show-secrets`
+
+### Chore
+
+- Pull in updates from base copier repo
+  - devcontainer updates
+  - pyright, GHA and pre-commit version bumps
+  - added .claude directory with some skills and beads configuration
+
 ---
 
 ## [0.0.6] - 2025-12-22
