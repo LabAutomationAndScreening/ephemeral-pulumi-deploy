@@ -271,7 +271,11 @@ _ = parser.add_argument(
 _ = parser.add_argument("--up", action="store_true")
 _ = parser.add_argument("--destroy", action="store_true")
 _ = parser.add_argument("--force-destroy", action="store_true", help="Force destroy of non-test/dev stacks")
-_ = parser.add_argument("--refresh", action="store_true", help="Refresh the state of the stack")
+_ = parser.add_argument(
+    "--refresh",
+    action="store_true",
+    help="Refresh the state of the stack. Use with --up or --preview to refresh before that action, or use standalone to just refresh the state without doing a preview or update.",
+)
 _ = parser.add_argument("--cancel", action="store_true", help="Cancel the currently running stack update")
 _ = parser.add_argument(
     "--preview", action="store_true", help="Preview changes (default when no action flag is provided)"
