@@ -33,7 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- New command line options to cover common puliumi operations
+- New command line options to cover common pulumi operations
   - `--refresh` enabled on both `--preview` and `--up`
   - `--cancel`
   - `--outputs` with optional `--show-secrets`
