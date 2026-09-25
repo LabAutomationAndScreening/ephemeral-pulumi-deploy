@@ -8,7 +8,7 @@ services:
         REPO_NAME: ephemeral-pulumi-deploy
     # You can run `devcontainer-info content-url` in codespaces to see what image base is
     volumes:
-      - ..:/workspaces/ephemeral-pulumi-deploy:cached
+      - ..:${WORKSPACE_MOUNT_TARGET:-/workspaces/ephemeral-pulumi-deploy}
       # Break out the venv folder as a separate docker volume for better performance on Windows hosts
       - python_venv:/workspaces/ephemeral-pulumi-deploy/.venv
     command: sleep infinity
