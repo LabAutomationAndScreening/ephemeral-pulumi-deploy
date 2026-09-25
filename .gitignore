@@ -89,4 +89,7 @@ dist
 # macOS dev cleanliness
 **/.DS_Store
 
+# Written by initialize-command.sh on every devcontainer start
+.devcontainer/.env
+
 # Ignores specific to this repository
