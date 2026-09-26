@@ -111,7 +111,7 @@ def get_env_from_cli_input(cli_stack_name: str) -> str:
     return "dev"
 
 
-def get_config(key: str) -> str | int | dict[str, Any]:
+def get_config(key: str) -> str | int | dict[str, object]:
     """Get the configuration value as a string.
 
     For reasons unknown, the `pulumi.runtime.config` returns a JSON string with `'value':str` and `'secret':bool` as a dictionary, instead of just the

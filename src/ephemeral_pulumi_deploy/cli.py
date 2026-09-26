@@ -2,7 +2,6 @@ import logging
 import os
 import sys
 from collections.abc import Callable
-from typing import Any
 from typing import TypedDict
 
 from pulumi.automation import PulumiFn
@@ -21,7 +20,7 @@ class StackKwargs(TypedDict):
     on_output: Callable[[str], None]
 
 
-def run_cli(*, stack_config: dict[str, Any], pulumi_program: PulumiFn) -> None:
+def run_cli(*, stack_config: dict[str, object], pulumi_program: PulumiFn) -> None:
     args = parser.parse_args()
     stack_name = str(args.stack).replace(
         "/", "-"
