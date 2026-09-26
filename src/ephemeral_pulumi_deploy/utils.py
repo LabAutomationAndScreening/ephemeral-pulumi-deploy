@@ -55,7 +55,9 @@ def get_aws_account_id() -> str:
 
 
 def get_aws_region() -> str:
-    region = str(pulumi_aws.config.region)  # TODO: str() turns a None region into "None", so the empty check below never catches a missing region
+    region = str(
+        pulumi_aws.config.region
+    )  # TODO: str() turns a None region into "None", so the empty check below never catches a missing region
     if region == "":
         raise ValueError("Could not determine AWS region")  # noqa: TRY003 # this doesn't warrant a custom exception
     return region
@@ -182,7 +184,11 @@ def get_config_int(key: str) -> int:
 
 
 def get_stack(
-    *, stack_name: str, pulumi_program: PulumiFn, stack_config: dict[str, Any], aws_home_region: str = "us-east-1"
+    *,
+    stack_name: str,
+    pulumi_program: PulumiFn,
+    stack_config: dict[str, Any],  # pyrefly: ignore[explicit-any] # values are a mix of str and ConfigValue, and Pulumi's StackSettings.config is itself typed dict[str, Any]
+    aws_home_region: str = "us-east-1",
 ) -> Stack:
     env = get_env_from_cli_input(stack_name)
     project_name = stack_config["proj:pulumi_project_name"]
