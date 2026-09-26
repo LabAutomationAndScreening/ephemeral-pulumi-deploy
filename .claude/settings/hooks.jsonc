@@ -1,0 +1,57 @@
+/*
+ * ============== WARNING ==============================================================================
+ * File is managed by copier template: gh:LabAutomationAndScreening/copier-base-template.git
+ * See .config/.copier-managed-files.json for details.
+ *
+ * You are welcome to make changes to this file in your repo if they are custom to your project,
+ * but if the change should be shared with other projects, please backport it to the template repo.
+ * =====================================================================================================
+ */
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          // `git rev-parse --show-toplevel` is used for these to find the project root, since these commands are always guaranteed to be running within the repo's working tree
+          {
+            "type": "command",
+            "command": "sh -c 'SESSION=$(jq -r \".session_id\" 2>/dev/null); DIR=\"/tmp/claude-$(id -u)\"; mkdir -p \"$DIR\"; printf \"%s\" \"$(git rev-parse --show-toplevel)\" > \"$DIR/.claude_project_root_${SESSION}\"'",
+            "timeout": 5,
+            "statusMessage": "Caching project root...",
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/hooks/caveman-activate.js\"",
+            "timeout": 5,
+            "statusMessage": "Loading caveman mode...",
+          },
+        ],
+      },
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'INPUT=$(cat); SESSION=$(printf \"%s\" \"$INPUT\" | jq -r \".session_id\" 2>/dev/null); ROOT=$(cat \"/tmp/claude-$(id -u)/.claude_project_root_${SESSION}\"); printf \"%s\" \"$INPUT\" | PROJECT_ROOT_DIR=\"$ROOT\" node \"$ROOT/.claude/hooks/caveman-mode-tracker.js\"'",
+            "timeout": 5,
+            "statusMessage": "Tracking caveman mode...",
+          },
+        ],
+      },
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'INPUT=$(cat); SESSION=$(printf \"%s\" \"$INPUT\" | jq -r \".session_id\" 2>/dev/null); ROOT=$(cat \"/tmp/claude-$(id -u)/.claude_project_root_${SESSION}\"); printf \"%s\" \"$INPUT\" | node \"$ROOT/.claude/hooks/bash-chain-guard.js\"'",
+            "timeout": 5,
+            "statusMessage": "Checking for command chaining...",
+          },
+        ],
+      },
+    ],
+  },
+}
