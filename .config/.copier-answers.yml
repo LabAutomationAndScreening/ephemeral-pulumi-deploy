@@ -25,4 +25,3 @@ ssh_port_number: 54296
 use_codecov: true
 use_windows_in_ci: false
 use_windows_in_exe_ci: false
-
