@@ -55,8 +55,8 @@ def get_aws_account_id() -> str:
 
 
 def get_aws_region() -> str:
-    region = str(pulumi_aws.config.region)
-    if not region:
+    region = str(pulumi_aws.config.region)  # TODO: str() turns a None region into "None", so the empty check below never catches a missing region
+    if region == "":
         raise ValueError("Could not determine AWS region")  # noqa: TRY003 # this doesn't warrant a custom exception
     return region
 
@@ -79,7 +79,7 @@ def append_resource_suffix(resource_name: str = "", max_length: int = SAFE_MAX_A
     """
     stack_name = pulumi.get_stack()[:7]
     project_name = pulumi.get_project()
-    if resource_name:
+    if resource_name != "":
         resource_name = RESOURCE_SUFFIX_DELIMITER.join((resource_name, project_name, stack_name.lower()))
     else:
         resource_name = RESOURCE_SUFFIX_DELIMITER.join((project_name, stack_name.lower()))
