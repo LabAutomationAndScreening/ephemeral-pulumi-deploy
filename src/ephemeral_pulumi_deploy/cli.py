@@ -2,9 +2,9 @@ import logging
 import os
 import sys
 from collections.abc import Callable
-from typing import TypedDict
 
 from pulumi.automation import PulumiFn
+from typing_extensions import TypedDict
 
 from .utils import PROTECTED_ENVS
 from .utils import get_env_from_cli_input
@@ -15,7 +15,7 @@ from .utils import result_to_str
 logger = logging.getLogger(__name__)
 
 
-class StackKwargs(TypedDict):
+class StackKwargs(TypedDict, closed=True):
     diff: bool
     on_output: Callable[[str], None]
 

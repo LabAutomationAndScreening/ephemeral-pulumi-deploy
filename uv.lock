@@ -617,13 +617,14 @@ wheels = [
 
 [[package]]
 name = "ephemeral-pulumi-deploy"
-version = "0.0.7"
+version = "0.0.8"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "pulumi" },
     { name = "pulumi-aws" },
     { name = "pulumi-aws-native" },
+    { name = "typing-extensions" },
 ]
 
 [package.dev-dependencies]
@@ -644,6 +645,7 @@ requires-dist = [
     { name = "pulumi", specifier = ">=3.213.0" },
     { name = "pulumi-aws", specifier = ">=7.15.0" },
     { name = "pulumi-aws-native", specifier = ">=1.45.0" },
+    { name = "typing-extensions", specifier = ">=4.12.2" },
 ]
 
 [package.metadata.requires-dev]
@@ -698,7 +700,7 @@ resolution-markers = [
     "python_full_version >= '3.14'",
 ]
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version >= '3.14'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b6/e0/318c1ce3ae5a17894d5791e87aea147587c9e702f24122cc7a5c8bbaeeb1/grpcio-1.76.0.tar.gz", hash = "sha256:7be78388d6da1a25c0d5ec506523db58b18be22d9c37d8d3a32c08be4987bd73", size = 12785182, upload-time = "2025-10-21T16:23:12.106Z" }
 wheels = [
