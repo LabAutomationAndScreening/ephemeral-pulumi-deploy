@@ -25,7 +25,7 @@ exclude_also =
     # Abstract methods inherently can't be hit
     @abstractmethod
 
-fail_under = 33
+fail_under = 60
 [html]
 directory = coverage-report-pytest
 
