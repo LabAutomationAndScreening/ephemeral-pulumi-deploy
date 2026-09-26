@@ -23,7 +23,7 @@ class StackKwargs(TypedDict):
 
 def run_cli(*, stack_config: dict[str, Any], pulumi_program: PulumiFn) -> None:
     args = parser.parse_args()
-    stack_name = args.stack.replace(
+    stack_name = str(args.stack).replace(
         "/", "-"
     )  # replace characters sometimes used in git branch names (for test/feature branches) that are incompatible with Pulumi and/or AWS resource naming
 
