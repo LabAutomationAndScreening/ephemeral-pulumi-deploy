@@ -139,14 +139,13 @@ def get_config(key: str) -> str | int | dict[str, object]:
     if (
         "value" in json_dict
     ):  # if the 'value' key is present, assume this is an actual attribute. Otherwise assume it's a nested dictionary
-        value = json_dict["value"]  # type: ignore[reportUnknownVariableType] # TODO: understand this, so there can be better typing
+        value: object = json_dict["value"]
         if not isinstance(value, int | str):
             raise NotImplementedError(
-                f"The value for config key {key} should always be a string or int, but it was found to be {value} which is {type(value)}. Original retrieved JSON was {json_str}"  # type: ignore[reportUnknownArgumentType] # TODO: understand this, so there can be better typing
+                f"The value for config key {key} should always be a string or int, but it was found to be {value} which is {type(value)}. Original retrieved JSON was {json_str}"
             )
         return value
-    assert isinstance(json_dict, str | int | dict)
-    return json_dict  # type: ignore[reportUnknownVariableType] # TODO: understand this, so there can be better typing
+    return json_dict
 
 
 def get_config_aws_account_id(key: str) -> str:
