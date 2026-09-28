@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from collections.abc import Callable
+from typing import Any
 
 from pulumi.automation import PulumiFn
 from typing_extensions import TypedDict
@@ -20,7 +21,12 @@ class StackKwargs(TypedDict, closed=True):
     on_output: Callable[[str], None]
 
 
-def run_cli(*, stack_config: dict[str, object], pulumi_program: PulumiFn) -> None:
+# TODO: consider accepting Mapping[str, object] so callers can pass dicts with narrower value types. get_stack would then need to write its injected keys into a copy instead of the caller's dict, and narrow the values it reads to str.
+def run_cli(
+    *,
+    stack_config: dict[str, Any],  # pyrefly: ignore[explicit-any] # matches Pulumi's own StackSettings.config type, and lets callers pass dicts with narrower value types (dict is invariant)
+    pulumi_program: PulumiFn,
+) -> None:
     args = parser.parse_args()
     stack_name = str(
         args.stack
