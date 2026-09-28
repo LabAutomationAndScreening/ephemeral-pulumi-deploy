@@ -3,9 +3,9 @@ import os
 import sys
 from collections.abc import Callable
 from typing import Any
-from typing import TypedDict
 
 from pulumi.automation import PulumiFn
+from typing_extensions import TypedDict
 
 from .utils import PROTECTED_ENVS
 from .utils import get_env_from_cli_input
@@ -16,14 +16,21 @@ from .utils import result_to_str
 logger = logging.getLogger(__name__)
 
 
-class StackKwargs(TypedDict):
+class StackKwargs(TypedDict, closed=True):
     diff: bool
     on_output: Callable[[str], None]
 
 
-def run_cli(*, stack_config: dict[str, Any], pulumi_program: PulumiFn) -> None:
+# TODO: consider accepting Mapping[str, object] so callers can pass dicts with narrower value types. get_stack would then need to write its injected keys into a copy instead of the caller's dict, and narrow the values it reads to str.
+def run_cli(
+    *,
+    stack_config: dict[str, Any],  # pyrefly: ignore[explicit-any] # matches Pulumi's own StackSettings.config type, and lets callers pass dicts with narrower value types (dict is invariant)
+    pulumi_program: PulumiFn,
+) -> None:
     args = parser.parse_args()
-    stack_name = args.stack.replace(
+    stack_name = str(
+        args.stack
+    ).replace(
         "/", "-"
     )  # replace characters sometimes used in git branch names (for test/feature branches) that are incompatible with Pulumi and/or AWS resource naming
 

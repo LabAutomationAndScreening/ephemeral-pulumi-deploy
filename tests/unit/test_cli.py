@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from pulumi.automation import OutputValue
 from pytest_mock import MockerFixture
 
 import ephemeral_pulumi_deploy.cli as cli_module
@@ -150,7 +151,7 @@ def test_slash_in_stack_name_is_replaced_with_dash(mocker: MockerFixture):
 
 def test_outputs_does_not_invoke_stack_operations(mocker: MockerFixture):
     mock_stack = MagicMock()
-    mock_stack.outputs.return_value = {}
+    mock_stack.outputs.return_value = dict[str, OutputValue]()
     _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, return_value=mock_stack)
     _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--outputs"])
 

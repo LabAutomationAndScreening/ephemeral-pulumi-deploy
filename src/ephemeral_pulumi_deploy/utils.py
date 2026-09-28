@@ -55,8 +55,10 @@ def get_aws_account_id() -> str:
 
 
 def get_aws_region() -> str:
-    region = str(pulumi_aws.config.region)
-    if not region:
+    region = str(
+        pulumi_aws.config.region
+    )  # TODO: str() turns a None region into "None", so the empty check below never catches a missing region
+    if region == "":
         raise ValueError("Could not determine AWS region")  # noqa: TRY003 # this doesn't warrant a custom exception
     return region
 
@@ -79,7 +81,7 @@ def append_resource_suffix(resource_name: str = "", max_length: int = SAFE_MAX_A
     """
     stack_name = pulumi.get_stack()[:7]
     project_name = pulumi.get_project()
-    if resource_name:
+    if resource_name != "":
         resource_name = RESOURCE_SUFFIX_DELIMITER.join((resource_name, project_name, stack_name.lower()))
     else:
         resource_name = RESOURCE_SUFFIX_DELIMITER.join((project_name, stack_name.lower()))
@@ -111,7 +113,7 @@ def get_env_from_cli_input(cli_stack_name: str) -> str:
     return "dev"
 
 
-def get_config(key: str) -> str | int | dict[str, Any]:
+def get_config(key: str) -> str | int | dict[str, object]:
     """Get the configuration value as a string.
 
     For reasons unknown, the `pulumi.runtime.config` returns a JSON string with `'value':str` and `'secret':bool` as a dictionary, instead of just the
@@ -137,14 +139,13 @@ def get_config(key: str) -> str | int | dict[str, Any]:
     if (
         "value" in json_dict
     ):  # if the 'value' key is present, assume this is an actual attribute. Otherwise assume it's a nested dictionary
-        value = json_dict["value"]  # type: ignore[reportUnknownVariableType] # TODO: understand this, so there can be better typing
+        value: object = json_dict["value"]
         if not isinstance(value, int | str):
             raise NotImplementedError(
-                f"The value for config key {key} should always be a string or int, but it was found to be {value} which is {type(value)}. Original retrieved JSON was {json_str}"  # type: ignore[reportUnknownArgumentType] # TODO: understand this, so there can be better typing
+                f"The value for config key {key} should always be a string or int, but it was found to be {value} which is {type(value)}. Original retrieved JSON was {json_str}"
             )
         return value
-    assert isinstance(json_dict, str | int | dict)
-    return json_dict  # type: ignore[reportUnknownVariableType] # TODO: understand this, so there can be better typing
+    return json_dict
 
 
 def get_config_aws_account_id(key: str) -> str:
@@ -182,7 +183,11 @@ def get_config_int(key: str) -> int:
 
 
 def get_stack(
-    *, stack_name: str, pulumi_program: PulumiFn, stack_config: dict[str, Any], aws_home_region: str = "us-east-1"
+    *,
+    stack_name: str,
+    pulumi_program: PulumiFn,
+    stack_config: dict[str, Any],  # pyrefly: ignore[explicit-any] # values are a mix of str and ConfigValue, and Pulumi's StackSettings.config is itself typed dict[str, Any]
+    aws_home_region: str = "us-east-1",
 ) -> Stack:
     env = get_env_from_cli_input(stack_name)
     project_name = stack_config["proj:pulumi_project_name"]
