@@ -334,6 +334,14 @@ def _patch_aws_account_lookups(mocker: MockerFixture, faker: Faker) -> None:
     aws_client.get_parameter.return_value = {"Parameter": {"Value": faker.pystr()}}
 
 
+def _cli_log_messages(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == cli_module.logger.name and record.levelno == level
+    ]
+
+
 class TestGivenNoStackWithRequestedName:
     @pytest.fixture(autouse=True)
     def _setup(self, mocker: MockerFixture, faker: Faker):
@@ -373,7 +381,7 @@ class TestGivenNoStackWithRequestedName:
             run_cli(stack_config=self.stack_config, pulumi_program=MagicMock())
 
         stdout = capsys.readouterr().out
-        error_messages = [record.getMessage() for record in caplog.records if record.levelno == logging.ERROR]
+        error_messages = _cli_log_messages(caplog, logging.ERROR)
 
         assert exc_info.value.code == 1
         assert len(error_messages) == 1
@@ -414,13 +422,9 @@ class TestGivenNoStackWithRequestedName:
         with pytest.raises(SystemExit, match="0") as exc_info:
             run_cli(stack_config=self.stack_config, pulumi_program=MagicMock())
 
-        cli_info_messages = [
-            record.getMessage()
-            for record in caplog.records
-            if record.name == cli_module.logger.name and record.levelno == logging.INFO
-        ]
+        info_messages = _cli_log_messages(caplog, logging.INFO)
 
         assert exc_info.value.code == 0
-        assert len(cli_info_messages) == 1
-        assert arbitrary_stack_name in cli_info_messages[0]
+        assert len(info_messages) == 1
+        assert arbitrary_stack_name in info_messages[0]
         self.create_or_select_stack_spy.assert_not_called()
