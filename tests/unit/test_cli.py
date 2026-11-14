@@ -308,3 +308,17 @@ def test_Given_dict_and_list_output_values__When_outputs_with_json__Then_values_
     stdout = capsys.readouterr().out
 
     assert json.loads(stdout) == {dict_key: dict_value, list_key: list_value}
+
+
+def test_Given_stack_without_outputs__When_outputs_with_json__Then_prints_empty_json_object(
+    mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
+):
+    _patch_stack_with_outputs(mocker, {})
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
+
+    with pytest.raises(SystemExit, match="0"):
+        run_cli(stack_config={}, pulumi_program=MagicMock())
+
+    stdout = capsys.readouterr().out
+
+    assert stdout == "{}\n"
