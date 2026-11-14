@@ -1,16 +1,21 @@
 import json
+import logging
 import sys
 from unittest.mock import MagicMock
 from uuid import uuid4
 
+import boto3
 import pytest
 from faker import Faker
+from pulumi.automation import CommandResult
 from pulumi.automation import LocalWorkspace
 from pulumi.automation import OutputValue
 from pulumi.automation import Stack
+from pulumi.automation import StackNotFoundError
 from pytest_mock import MockerFixture
 
 import ephemeral_pulumi_deploy.cli as cli_module
+import ephemeral_pulumi_deploy.utils as utils_module
 from ephemeral_pulumi_deploy.cli import run_cli
 
 arbitrary_stack_name = str(uuid4())
@@ -320,3 +325,55 @@ def test_Given_stack_without_outputs__When_outputs_with_json__Then_prints_empty_
     stdout = capsys.readouterr().out
 
     assert stdout == "{}\n"
+
+
+def _patch_aws_account_lookups(mocker: MockerFixture, faker: Faker) -> None:
+    aws_client = mocker.patch.object(boto3, boto3.Session.__name__).return_value.client.return_value
+    aws_client.get_caller_identity.return_value = {"Account": faker.numerify("#" * utils_module.AWS_ACCOUNT_ID_LENGTH)}
+    aws_client.get_parameter.return_value = {"Parameter": {"Value": faker.pystr()}}
+
+
+class TestGivenNoStackWithRequestedName:
+    @pytest.fixture(autouse=True)
+    def _setup(
+        self,
+        mocker: MockerFixture,
+        capsys: pytest.CaptureFixture[str],
+        caplog: pytest.LogCaptureFixture,
+        faker: Faker,
+    ):
+        self.mocker = mocker
+        self.capsys = capsys
+        self.caplog = caplog
+        self.stack_name = str(uuid4())
+        self.stack_config: dict[str, object] = {
+            "proj:pulumi_project_name": faker.slug(),
+            "proj:github_repo_name": faker.slug(),
+        }
+        _patch_aws_account_lookups(mocker, faker)
+        _ = mocker.patch.object(
+            utils_module,
+            utils_module.select_stack.__name__,
+            autospec=True,
+            side_effect=StackNotFoundError(
+                CommandResult(stdout=faker.sentence(), stderr=faker.sentence(), code=faker.pyint(min_value=1))
+            ),
+        )
+        self.create_or_select_stack_spy = mocker.patch.object(
+            utils_module, utils_module.create_or_select_stack.__name__, autospec=True
+        )
+
+    def test_When_outputs__Then_exits_one_logging_error_naming_stack_without_printing_or_creating_it(self):
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", self.stack_name, "--outputs"])
+
+        with pytest.raises(SystemExit, match="1") as exc_info:
+            run_cli(stack_config=self.stack_config, pulumi_program=MagicMock())
+
+        stdout = self.capsys.readouterr().out
+        error_messages = [record.getMessage() for record in self.caplog.records if record.levelno == logging.ERROR]
+
+        assert exc_info.value.code == 1
+        assert len(error_messages) == 1
+        assert self.stack_name in error_messages[0]
+        assert stdout == ""
+        self.create_or_select_stack_spy.assert_not_called()

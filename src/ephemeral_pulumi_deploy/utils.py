@@ -16,6 +16,7 @@ from pulumi.automation import PulumiFn
 from pulumi.automation import Stack
 from pulumi.automation import StackSettings
 from pulumi.automation import create_or_select_stack
+from pulumi.automation import select_stack
 from pulumi.automation._stack import BaseResult
 from pulumi_aws_native import TagArgs
 
@@ -188,6 +189,7 @@ def get_stack(
     pulumi_program: PulumiFn,
     stack_config: dict[str, Any],  # pyrefly: ignore[explicit-any] # values are a mix of str and ConfigValue, and Pulumi's StackSettings.config is itself typed dict[str, Any]
     aws_home_region: str = "us-east-1",
+    create_if_missing: bool = True,
 ) -> Stack:
     env = get_env_from_cli_input(stack_name)
     project_name = stack_config["proj:pulumi_project_name"]
@@ -238,7 +240,14 @@ def get_stack(
         stack_settings={stack_name: stack_settings},
     )
 
-    return create_or_select_stack(
+    if create_if_missing:
+        return create_or_select_stack(
+            stack_name,
+            project_name=project_name,
+            program=pulumi_program,
+            opts=workspace_options,
+        )
+    return select_stack(
         stack_name,
         project_name=project_name,
         program=pulumi_program,

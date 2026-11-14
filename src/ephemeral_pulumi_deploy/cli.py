@@ -8,6 +8,7 @@ from typing import Any
 
 from pulumi.automation import PulumiFn
 from pulumi.automation import Stack
+from pulumi.automation import StackNotFoundError
 from typing_extensions import TypedDict
 
 from .utils import PROTECTED_ENVS
@@ -47,6 +48,27 @@ def _print_outputs(*, stack: Stack, show_secrets: bool, as_json: bool) -> None:
         print(f"{key}: {value}")  # noqa: T201 # stdout is the human-readable listing for the person running the CLI
 
 
+def _load_stack(
+    *,
+    stack_name: str,
+    pulumi_program: PulumiFn,
+    stack_config: dict[str, Any],  # pyrefly: ignore[explicit-any] # passed through unchanged to get_stack, whose parameter has this type
+    create_if_missing: bool,
+) -> Stack:
+    try:
+        return get_stack(
+            stack_name=stack_name,
+            pulumi_program=pulumi_program,
+            stack_config=stack_config,
+            create_if_missing=create_if_missing,
+        )
+    except StackNotFoundError:
+        logger.error(  # noqa: TRY400 # a missing stack is an expected user mistake (typo or not yet deployed), so a traceback would only bury the message
+            f"Stack {stack_name} was not found. It may not have been deployed yet."
+        )
+        sys.exit(1)
+
+
 # TODO: consider accepting Mapping[str, object] so callers can pass dicts with narrower value types. get_stack would then need to write its injected keys into a copy instead of the caller's dict, and narrow the values it reads to str.
 def run_cli(
     *,
@@ -66,10 +88,14 @@ def run_cli(
         logger.error(f"Stack {stack_name} can't be destroyed, because it's not a test/dev stack.")
         sys.exit(1)
 
-    stack = get_stack(
+    create_if_missing = True
+    if args.outputs:
+        create_if_missing = False
+    stack = _load_stack(
         stack_name=stack_name,
         pulumi_program=pulumi_program,
         stack_config=stack_config,
+        create_if_missing=create_if_missing,
     )
 
     if args.cancel:
