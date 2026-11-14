@@ -261,7 +261,13 @@ class TestGivenStackWithPlainAndSecretOutputs:
             },
         )
 
-    def test_When_outputs_with_json__Then_prints_single_line_json_object_with_secrets_masked(self):
+    def test_When_outputs_with_json__Then_prints_single_line_json_object_with_secrets_masked_without_stack_operations(
+        self,
+    ):
+        up_spy = self.mocker.patch.object(Stack, Stack.up.__name__, autospec=True)
+        preview_spy = self.mocker.patch.object(Stack, Stack.preview.__name__, autospec=True)
+        refresh_spy = self.mocker.patch.object(Stack, Stack.refresh.__name__, autospec=True)
+        destroy_spy = self.mocker.patch.object(Stack, Stack.destroy.__name__, autospec=True)
         _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
 
         with pytest.raises(SystemExit, match="0") as exc_info:
@@ -273,6 +279,10 @@ class TestGivenStackWithPlainAndSecretOutputs:
         assert len(stdout.splitlines()) == 1
         assert json.loads(stdout) == {self.plain_key: self.plain_value, self.secret_key: "[secret]"}
         assert self.secret_value not in stdout
+        up_spy.assert_not_called()
+        preview_spy.assert_not_called()
+        refresh_spy.assert_not_called()
+        destroy_spy.assert_not_called()
 
     def test_When_outputs_with_json_and_show_secrets__Then_secret_values_are_revealed(self):
         _ = self.mocker.patch.object(
