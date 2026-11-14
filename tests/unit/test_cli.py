@@ -244,49 +244,43 @@ def test_When_json_passed_without_outputs__Then_usage_error_names_both_flags_bef
     get_stack_spy.assert_not_called()
 
 
-def test_When_outputs_with_json__Then_prints_single_json_object_with_secrets_masked(
-    mocker: MockerFixture, capsys: pytest.CaptureFixture[str], faker: Faker
-):
-    plain_key = faker.unique.pystr()
-    plain_value = faker.sentence()
-    secret_key = faker.unique.pystr()
-    secret_value = faker.password()
-    outputs = {
-        plain_key: OutputValue(value=plain_value, secret=False),
-        secret_key: OutputValue(value=secret_value, secret=True),
-    }
-    _patch_stack_with_outputs(mocker, outputs)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
+class TestGivenStackWithPlainAndSecretOutputs:
+    @pytest.fixture(autouse=True)
+    def _setup(self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str], faker: Faker):
+        self.mocker = mocker
+        self.capsys = capsys
+        self.plain_key = faker.unique.pystr()
+        self.plain_value = faker.sentence()
+        self.secret_key = faker.unique.pystr()
+        self.secret_value = faker.password()
+        _patch_stack_with_outputs(
+            mocker,
+            {
+                self.plain_key: OutputValue(value=self.plain_value, secret=False),
+                self.secret_key: OutputValue(value=self.secret_value, secret=True),
+            },
+        )
 
-    with pytest.raises(SystemExit, match="0") as exc_info:
-        run_cli(stack_config={}, pulumi_program=MagicMock())
+    def test_When_outputs_with_json__Then_prints_single_json_object_with_secrets_masked(self):
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
 
-    stdout = capsys.readouterr().out
+        with pytest.raises(SystemExit, match="0") as exc_info:
+            run_cli(stack_config={}, pulumi_program=MagicMock())
 
-    assert exc_info.value.code == 0
-    assert json.loads(stdout) == {plain_key: plain_value, secret_key: "[secret]"}
-    assert secret_value not in stdout
+        stdout = self.capsys.readouterr().out
 
+        assert exc_info.value.code == 0
+        assert json.loads(stdout) == {self.plain_key: self.plain_value, self.secret_key: "[secret]"}
+        assert self.secret_value not in stdout
 
-def test_When_outputs_with_json_and_show_secrets__Then_secret_values_are_revealed(
-    mocker: MockerFixture, capsys: pytest.CaptureFixture[str], faker: Faker
-):
-    plain_key = faker.unique.pystr()
-    plain_value = faker.sentence()
-    secret_key = faker.unique.pystr()
-    secret_value = faker.password()
-    outputs = {
-        plain_key: OutputValue(value=plain_value, secret=False),
-        secret_key: OutputValue(value=secret_value, secret=True),
-    }
-    _patch_stack_with_outputs(mocker, outputs)
-    _ = mocker.patch.object(
-        sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json", "--show-secrets"]
-    )
+    def test_When_outputs_with_json_and_show_secrets__Then_secret_values_are_revealed(self):
+        _ = self.mocker.patch.object(
+            sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json", "--show-secrets"]
+        )
 
-    with pytest.raises(SystemExit, match="0"):
-        run_cli(stack_config={}, pulumi_program=MagicMock())
+        with pytest.raises(SystemExit, match="0"):
+            run_cli(stack_config={}, pulumi_program=MagicMock())
 
-    stdout = capsys.readouterr().out
+        stdout = self.capsys.readouterr().out
 
-    assert json.loads(stdout) == {plain_key: plain_value, secret_key: secret_value}
+        assert json.loads(stdout) == {self.plain_key: self.plain_value, self.secret_key: self.secret_value}
