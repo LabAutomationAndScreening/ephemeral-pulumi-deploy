@@ -1,8 +1,10 @@
+import json
 import sys
 from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from faker import Faker
 from pulumi.automation import LocalWorkspace
 from pulumi.automation import OutputValue
 from pulumi.automation import Stack
@@ -12,10 +14,17 @@ import ephemeral_pulumi_deploy.cli as cli_module
 from ephemeral_pulumi_deploy.cli import run_cli
 
 arbitrary_stack_name = str(uuid4())
+ARGPARSE_USAGE_ERROR_EXIT_CODE = 2
 
 
 def _select_stack(mocker: MockerFixture) -> Stack:
     return Stack.select(arbitrary_stack_name, mocker.create_autospec(LocalWorkspace, instance=True))
+
+
+def _patch_stack_with_outputs(mocker: MockerFixture, outputs: dict[str, OutputValue]) -> None:
+    stack = _select_stack(mocker)
+    _ = mocker.patch.object(Stack, Stack.outputs.__name__, autospec=True, return_value=outputs)
+    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
 
 
 def test_cancel_calls_stack_cancel_and_exits_zero(mocker: MockerFixture):
@@ -174,51 +183,140 @@ def test_slash_in_stack_name_is_replaced_with_dash(mocker: MockerFixture):
     assert actual_stack_name == "feature-my-branch"
 
 
-def test_outputs_does_not_invoke_stack_operations(mocker: MockerFixture):
-    stack = _select_stack(mocker)
-    _ = mocker.patch.object(Stack, Stack.outputs.__name__, autospec=True, return_value=dict[str, OutputValue]())
-    up_spy = mocker.patch.object(Stack, Stack.up.__name__, autospec=True)
-    preview_spy = mocker.patch.object(Stack, Stack.preview.__name__, autospec=True)
-    refresh_spy = mocker.patch.object(Stack, Stack.refresh.__name__, autospec=True)
-    destroy_spy = mocker.patch.object(Stack, Stack.destroy.__name__, autospec=True)
-    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--outputs"])
+def test_When_json_passed_without_outputs__Then_usage_error_names_both_flags_before_stack_is_loaded(
+    mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
+):
+    get_stack_spy = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True)
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--json"])
+
+    with pytest.raises(SystemExit, match=str(ARGPARSE_USAGE_ERROR_EXIT_CODE)) as exc_info:
+        run_cli(stack_config={}, pulumi_program=MagicMock())
+
+    error_line = capsys.readouterr().err.strip().splitlines()[-1]
+
+    assert exc_info.value.code == ARGPARSE_USAGE_ERROR_EXIT_CODE
+    assert "--json" in error_line
+    assert "--outputs" in error_line
+    get_stack_spy.assert_not_called()
+
+
+class TestGivenStackWithPlainAndSecretOutputs:
+    @pytest.fixture(autouse=True)
+    def _setup(self, mocker: MockerFixture, capsys: pytest.CaptureFixture[str], faker: Faker):
+        self.mocker = mocker
+        self.capsys = capsys
+        self.plain_key = faker.unique.pystr()
+        self.plain_value = faker.sentence()
+        self.secret_key = faker.unique.pystr()
+        self.secret_value = faker.password()
+        _patch_stack_with_outputs(
+            mocker,
+            {
+                self.plain_key: OutputValue(value=self.plain_value, secret=False),
+                self.secret_key: OutputValue(value=self.secret_value, secret=True),
+            },
+        )
+
+    def test_When_outputs__Then_prints_one_line_per_output_with_secrets_masked_without_stack_operations(self):
+        up_spy = self.mocker.patch.object(Stack, Stack.up.__name__, autospec=True)
+        preview_spy = self.mocker.patch.object(Stack, Stack.preview.__name__, autospec=True)
+        refresh_spy = self.mocker.patch.object(Stack, Stack.refresh.__name__, autospec=True)
+        destroy_spy = self.mocker.patch.object(Stack, Stack.destroy.__name__, autospec=True)
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs"])
+
+        with pytest.raises(SystemExit, match="0") as exc_info:
+            run_cli(stack_config={}, pulumi_program=MagicMock())
+
+        stdout = self.capsys.readouterr().out
+
+        assert exc_info.value.code == 0
+        assert stdout == f"{self.plain_key}: {self.plain_value}\n{self.secret_key}: [secret]\n"
+        up_spy.assert_not_called()
+        preview_spy.assert_not_called()
+        refresh_spy.assert_not_called()
+        destroy_spy.assert_not_called()
+
+    def test_When_outputs_with_show_secrets__Then_secret_values_are_revealed(self):
+        _ = self.mocker.patch.object(
+            sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--show-secrets"]
+        )
+
+        with pytest.raises(SystemExit, match="0"):
+            run_cli(stack_config={}, pulumi_program=MagicMock())
+
+        stdout = self.capsys.readouterr().out
+
+        assert stdout == f"{self.plain_key}: {self.plain_value}\n{self.secret_key}: {self.secret_value}\n"
+
+    def test_When_outputs_with_json__Then_prints_single_line_json_object_with_secrets_masked_without_stack_operations(
+        self,
+    ):
+        up_spy = self.mocker.patch.object(Stack, Stack.up.__name__, autospec=True)
+        preview_spy = self.mocker.patch.object(Stack, Stack.preview.__name__, autospec=True)
+        refresh_spy = self.mocker.patch.object(Stack, Stack.refresh.__name__, autospec=True)
+        destroy_spy = self.mocker.patch.object(Stack, Stack.destroy.__name__, autospec=True)
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
+
+        with pytest.raises(SystemExit, match="0") as exc_info:
+            run_cli(stack_config={}, pulumi_program=MagicMock())
+
+        stdout = self.capsys.readouterr().out
+
+        assert exc_info.value.code == 0
+        assert len(stdout.splitlines()) == 1
+        assert json.loads(stdout) == {self.plain_key: self.plain_value, self.secret_key: "[secret]"}
+        assert self.secret_value not in stdout
+        up_spy.assert_not_called()
+        preview_spy.assert_not_called()
+        refresh_spy.assert_not_called()
+        destroy_spy.assert_not_called()
+
+    def test_When_outputs_with_json_and_show_secrets__Then_secret_values_are_revealed(self):
+        _ = self.mocker.patch.object(
+            sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json", "--show-secrets"]
+        )
+
+        with pytest.raises(SystemExit, match="0"):
+            run_cli(stack_config={}, pulumi_program=MagicMock())
+
+        stdout = self.capsys.readouterr().out
+
+        assert json.loads(stdout) == {self.plain_key: self.plain_value, self.secret_key: self.secret_value}
+
+
+def test_Given_dict_and_list_output_values__When_outputs_with_json__Then_values_stay_native_json_structures(
+    mocker: MockerFixture, capsys: pytest.CaptureFixture[str], faker: Faker
+):
+    dict_key = faker.unique.pystr()
+    dict_value = {faker.unique.pystr(): [faker.word(), faker.pyint()], faker.unique.pystr(): faker.pybool()}
+    list_key = faker.unique.pystr()
+    list_value = [faker.word(), {faker.unique.pystr(): faker.pyint()}]
+    _patch_stack_with_outputs(
+        mocker,
+        {
+            dict_key: OutputValue(value=dict_value, secret=False),
+            list_key: OutputValue(value=list_value, secret=False),
+        },
+    )
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
 
     with pytest.raises(SystemExit, match="0"):
         run_cli(stack_config={}, pulumi_program=MagicMock())
 
-    up_spy.assert_not_called()
-    preview_spy.assert_not_called()
-    refresh_spy.assert_not_called()
-    destroy_spy.assert_not_called()
+    stdout = capsys.readouterr().out
+
+    assert json.loads(stdout) == {dict_key: dict_value, list_key: list_value}
 
 
-def test_outputs_prints_values_and_masks_secrets(mocker: MockerFixture, capsys: pytest.CaptureFixture[str]):
-    outputs = {"greeting": OutputValue(value="hello", secret=False), "token": OutputValue(value="s3cr3t", secret=True)}
-    stack = _select_stack(mocker)
-    _ = mocker.patch.object(Stack, Stack.outputs.__name__, autospec=True, return_value=outputs)
-    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--outputs"])
-
-    with pytest.raises(SystemExit, match="0") as exc_info:
-        run_cli(stack_config={}, pulumi_program=MagicMock())
-
-    assert exc_info.value.code == 0
-    captured = capsys.readouterr()
-    assert "greeting: hello" in captured.out
-    assert "token: [secret]" in captured.out
-    assert "s3cr3t" not in captured.out
-
-
-def test_outputs_with_show_secrets_reveals_secret_values(mocker: MockerFixture, capsys: pytest.CaptureFixture[str]):
-    outputs = {"token": OutputValue(value="s3cr3t", secret=True)}
-    stack = _select_stack(mocker)
-    _ = mocker.patch.object(Stack, Stack.outputs.__name__, autospec=True, return_value=outputs)
-    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--outputs", "--show-secrets"])
+def test_Given_stack_without_outputs__When_outputs_with_json__Then_prints_empty_json_object(
+    mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
+):
+    _patch_stack_with_outputs(mocker, {})
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
 
     with pytest.raises(SystemExit, match="0"):
         run_cli(stack_config={}, pulumi_program=MagicMock())
 
-    captured = capsys.readouterr()
-    assert "token: s3cr3t" in captured.out
+    stdout = capsys.readouterr().out
+
+    assert stdout == "{}\n"
