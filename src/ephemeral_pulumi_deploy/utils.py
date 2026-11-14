@@ -289,3 +289,6 @@ _ = parser.add_argument("--outputs", action="store_true", help="Print stack outp
 _ = parser.add_argument(
     "--show-secrets", action="store_true", help="Show secret values when printing outputs (use with --outputs)"
 )
+_ = parser.add_argument(
+    "--json", action="store_true", help="Print stack outputs as a single JSON object (use with --outputs)"
+)
