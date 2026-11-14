@@ -304,5 +304,5 @@ _ = parser.add_argument(
 _ = parser.add_argument(
     "--ignore-missing-stack",
     action="store_true",
-    help="With --destroy, exit 0 instead of failing when the stack does not exist",
+    help="Exit 0 instead of failing when the stack does not exist (use with --destroy)",
 )
