@@ -64,6 +64,7 @@ def _load_stack(
     pulumi_program: PulumiFn,
     stack_config: dict[str, Any],  # pyrefly: ignore[explicit-any] # passed through unchanged to get_stack, whose parameter has this type
     create_if_missing: bool,
+    ignore_missing_stack: bool,
 ) -> Stack:
     try:
         return get_stack(
@@ -73,6 +74,9 @@ def _load_stack(
             create_if_missing=create_if_missing,
         )
     except StackNotFoundError:
+        if ignore_missing_stack:
+            logger.info(f"Stack {stack_name} does not exist, so there is nothing to destroy.")
+            sys.exit(0)
         logger.error(  # noqa: TRY400 # a missing stack is an expected user mistake (typo or not yet deployed), so a traceback would only bury the message
             f"Stack {stack_name} was not found. It may not have been deployed yet."
         )
@@ -103,6 +107,7 @@ def run_cli(
         pulumi_program=pulumi_program,
         stack_config=stack_config,
         create_if_missing=_action_is_valid_before_first_deploy(args),
+        ignore_missing_stack=args.ignore_missing_stack,
     )
 
     if args.cancel:

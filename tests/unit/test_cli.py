@@ -403,3 +403,24 @@ class TestGivenNoStackWithRequestedName:
             opts=ANY,
         )
         self.select_stack_spy.assert_not_called()
+
+    def test_When_destroy_with_ignore_missing_stack__Then_exits_zero_logging_info_naming_stack_without_creating_it(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        _ = self.mocker.patch.object(
+            sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--destroy", "--ignore-missing-stack"]
+        )
+
+        with pytest.raises(SystemExit, match="0") as exc_info:
+            run_cli(stack_config=self.stack_config, pulumi_program=MagicMock())
+
+        cli_info_messages = [
+            record.getMessage()
+            for record in caplog.records
+            if record.name == cli_module.logger.name and record.levelno == logging.INFO
+        ]
+
+        assert exc_info.value.code == 0
+        assert len(cli_info_messages) == 1
+        assert arbitrary_stack_name in cli_info_messages[0]
+        self.create_or_select_stack_spy.assert_not_called()

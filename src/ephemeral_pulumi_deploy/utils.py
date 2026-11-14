@@ -301,3 +301,8 @@ _ = parser.add_argument(
 _ = parser.add_argument(
     "--json", action="store_true", help="Print stack outputs as a single JSON object (use with --outputs)"
 )
+_ = parser.add_argument(
+    "--ignore-missing-stack",
+    action="store_true",
+    help="With --destroy, exit 0 instead of failing when the stack does not exist",
+)
