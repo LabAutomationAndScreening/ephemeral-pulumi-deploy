@@ -284,3 +284,27 @@ class TestGivenStackWithPlainAndSecretOutputs:
         stdout = self.capsys.readouterr().out
 
         assert json.loads(stdout) == {self.plain_key: self.plain_value, self.secret_key: self.secret_value}
+
+
+def test_Given_dict_and_list_output_values__When_outputs_with_json__Then_values_stay_native_json_structures(
+    mocker: MockerFixture, capsys: pytest.CaptureFixture[str], faker: Faker
+):
+    dict_key = faker.unique.pystr()
+    dict_value = {faker.unique.pystr(): [faker.word(), faker.pyint()], faker.unique.pystr(): faker.pybool()}
+    list_key = faker.unique.pystr()
+    list_value = [faker.word(), {faker.unique.pystr(): faker.pyint()}]
+    _patch_stack_with_outputs(
+        mocker,
+        {
+            dict_key: OutputValue(value=dict_value, secret=False),
+            list_key: OutputValue(value=list_value, secret=False),
+        },
+    )
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
+
+    with pytest.raises(SystemExit, match="0"):
+        run_cli(stack_config={}, pulumi_program=MagicMock())
+
+    stdout = capsys.readouterr().out
+
+    assert json.loads(stdout) == {dict_key: dict_value, list_key: list_value}
