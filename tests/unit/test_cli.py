@@ -21,6 +21,12 @@ def _select_stack(mocker: MockerFixture) -> Stack:
     return Stack.select(arbitrary_stack_name, mocker.create_autospec(LocalWorkspace, instance=True))
 
 
+def _patch_stack_with_outputs(mocker: MockerFixture, outputs: dict[str, OutputValue]) -> None:
+    stack = _select_stack(mocker)
+    _ = mocker.patch.object(Stack, Stack.outputs.__name__, autospec=True, return_value=outputs)
+    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
+
+
 def test_cancel_calls_stack_cancel_and_exits_zero(mocker: MockerFixture):
     stack = _select_stack(mocker)
     cancel_spy = mocker.patch.object(Stack, Stack.cancel.__name__, autospec=True)
@@ -178,13 +184,11 @@ def test_slash_in_stack_name_is_replaced_with_dash(mocker: MockerFixture):
 
 
 def test_outputs_does_not_invoke_stack_operations(mocker: MockerFixture):
-    stack = _select_stack(mocker)
-    _ = mocker.patch.object(Stack, Stack.outputs.__name__, autospec=True, return_value=dict[str, OutputValue]())
+    _patch_stack_with_outputs(mocker, {})
     up_spy = mocker.patch.object(Stack, Stack.up.__name__, autospec=True)
     preview_spy = mocker.patch.object(Stack, Stack.preview.__name__, autospec=True)
     refresh_spy = mocker.patch.object(Stack, Stack.refresh.__name__, autospec=True)
     destroy_spy = mocker.patch.object(Stack, Stack.destroy.__name__, autospec=True)
-    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
     _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--outputs"])
 
     with pytest.raises(SystemExit, match="0"):
@@ -198,9 +202,7 @@ def test_outputs_does_not_invoke_stack_operations(mocker: MockerFixture):
 
 def test_outputs_prints_values_and_masks_secrets(mocker: MockerFixture, capsys: pytest.CaptureFixture[str]):
     outputs = {"greeting": OutputValue(value="hello", secret=False), "token": OutputValue(value="s3cr3t", secret=True)}
-    stack = _select_stack(mocker)
-    _ = mocker.patch.object(Stack, Stack.outputs.__name__, autospec=True, return_value=outputs)
-    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
+    _patch_stack_with_outputs(mocker, outputs)
     _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--outputs"])
 
     with pytest.raises(SystemExit, match="0") as exc_info:
@@ -215,9 +217,7 @@ def test_outputs_prints_values_and_masks_secrets(mocker: MockerFixture, capsys: 
 
 def test_outputs_with_show_secrets_reveals_secret_values(mocker: MockerFixture, capsys: pytest.CaptureFixture[str]):
     outputs = {"token": OutputValue(value="s3cr3t", secret=True)}
-    stack = _select_stack(mocker)
-    _ = mocker.patch.object(Stack, Stack.outputs.__name__, autospec=True, return_value=outputs)
-    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
+    _patch_stack_with_outputs(mocker, outputs)
     _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--outputs", "--show-secrets"])
 
     with pytest.raises(SystemExit, match="0"):
@@ -255,9 +255,7 @@ def test_When_outputs_with_json__Then_prints_single_json_object_with_secrets_mas
         plain_key: OutputValue(value=plain_value, secret=False),
         secret_key: OutputValue(value=secret_value, secret=True),
     }
-    stack = _select_stack(mocker)
-    _ = mocker.patch.object(Stack, Stack.outputs.__name__, autospec=True, return_value=outputs)
-    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
+    _patch_stack_with_outputs(mocker, outputs)
     _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
 
     with pytest.raises(SystemExit, match="0") as exc_info:
