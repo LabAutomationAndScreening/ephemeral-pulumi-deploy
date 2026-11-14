@@ -336,16 +336,8 @@ def _patch_aws_account_lookups(mocker: MockerFixture, faker: Faker) -> None:
 
 class TestGivenNoStackWithRequestedName:
     @pytest.fixture(autouse=True)
-    def _setup(
-        self,
-        mocker: MockerFixture,
-        capsys: pytest.CaptureFixture[str],
-        caplog: pytest.LogCaptureFixture,
-        faker: Faker,
-    ):
+    def _setup(self, mocker: MockerFixture, faker: Faker):
         self.mocker = mocker
-        self.capsys = capsys
-        self.caplog = caplog
         self.stack_config = {
             "proj:pulumi_project_name": faker.slug(),
             "proj:github_repo_name": faker.slug(),
@@ -363,14 +355,16 @@ class TestGivenNoStackWithRequestedName:
             utils_module, utils_module.create_or_select_stack.__name__, autospec=True
         )
 
-    def test_When_outputs__Then_exits_one_logging_error_naming_stack_without_printing_or_creating_it(self):
+    def test_When_outputs__Then_exits_one_logging_error_naming_stack_without_printing_or_creating_it(
+        self, capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
+    ):
         _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs"])
 
         with pytest.raises(SystemExit, match="1") as exc_info:
             run_cli(stack_config=self.stack_config, pulumi_program=MagicMock())
 
-        stdout = self.capsys.readouterr().out
-        error_messages = [record.getMessage() for record in self.caplog.records if record.levelno == logging.ERROR]
+        stdout = capsys.readouterr().out
+        error_messages = [record.getMessage() for record in caplog.records if record.levelno == logging.ERROR]
 
         assert exc_info.value.code == 1
         assert len(error_messages) == 1
@@ -387,7 +381,7 @@ class TestGivenNoStackWithRequestedName:
             pytest.param([], id="no-action-flag-defaults-to-preview"),
         ],
     )
-    def test_When_action_that_deploys_or_inspects_infrastructure__Then_stack_is_created(self, action_flags: list[str]):
+    def test_When_action_valid_before_first_deploy__Then_stack_is_created(self, action_flags: list[str]):
         pulumi_program = MagicMock()
         _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, *action_flags])
 
