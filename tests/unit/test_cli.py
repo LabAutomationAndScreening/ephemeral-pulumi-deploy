@@ -1,6 +1,7 @@
 import json
 import logging
 import sys
+from collections.abc import Iterator
 from unittest.mock import ANY
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -8,6 +9,7 @@ from uuid import uuid4
 import boto3
 import pytest
 from faker import Faker
+from moto import mock_aws
 from pulumi.automation import CommandResult
 from pulumi.automation import LocalWorkspace
 from pulumi.automation import OutputValue
@@ -21,6 +23,8 @@ from ephemeral_pulumi_deploy.cli import run_cli
 
 arbitrary_stack_name = str(uuid4())
 ARGPARSE_USAGE_ERROR_EXIT_CODE = 2
+ORG_MANAGED_STATE_BUCKET_PARAMETER = "/org-managed/infra-state-bucket-name"
+ORG_MANAGED_STATE_KMS_KEY_PARAMETER = "/org-managed/infra-state-kms-key-arn"
 
 
 def _select_stack(mocker: MockerFixture) -> Stack:
@@ -342,10 +346,18 @@ def test_Given_stack_without_outputs__When_outputs_with_json__Then_prints_empty_
     assert stdout == "{}\n"
 
 
-def _patch_aws_account_lookups(mocker: MockerFixture, faker: Faker) -> None:
-    aws_client = mocker.patch.object(boto3, boto3.Session.__name__).return_value.client.return_value
-    aws_client.get_caller_identity.return_value = {"Account": faker.numerify("#" * utils_module.AWS_ACCOUNT_ID_LENGTH)}
-    aws_client.get_parameter.return_value = {"Parameter": {"Value": faker.pystr()}}
+@pytest.fixture
+def fake_org_managed_aws_account(monkeypatch: pytest.MonkeyPatch, faker: Faker) -> Iterator[None]:
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", utils_module.DEFAULT_AWS_HOME_REGION)
+    with mock_aws():
+        ssm_client = boto3.client("ssm", region_name=utils_module.DEFAULT_AWS_HOME_REGION)
+        _ = ssm_client.put_parameter(Name=ORG_MANAGED_STATE_BUCKET_PARAMETER, Value=faker.slug(), Type="String")
+        _ = ssm_client.put_parameter(Name=ORG_MANAGED_STATE_KMS_KEY_PARAMETER, Value=faker.pystr(), Type="String")
+        yield
 
 
 def _cli_log_messages(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
@@ -356,6 +368,7 @@ def _cli_log_messages(caplog: pytest.LogCaptureFixture, level: int) -> list[str]
     ]
 
 
+@pytest.mark.usefixtures(fake_org_managed_aws_account.__name__)
 class TestGivenNoStackWithRequestedName:
     @pytest.fixture(autouse=True)
     def _setup(self, mocker: MockerFixture, faker: Faker):
@@ -364,7 +377,6 @@ class TestGivenNoStackWithRequestedName:
             "proj:pulumi_project_name": faker.slug(),
             "proj:github_repo_name": faker.slug(),
         }
-        _patch_aws_account_lookups(mocker, faker)
         self.select_stack_spy = mocker.patch.object(
             utils_module,
             utils_module.select_stack.__name__,

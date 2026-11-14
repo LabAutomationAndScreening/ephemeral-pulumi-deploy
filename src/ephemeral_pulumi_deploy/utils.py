@@ -23,6 +23,7 @@ from pulumi_aws_native import TagArgs
 logger = logging.getLogger(__name__)
 PROTECTED_ENVS = ("stag", "staging", "prod", "production")
 RESOURCE_SUFFIX_DELIMITER = "--"
+DEFAULT_AWS_HOME_REGION = "us-east-1"
 
 
 def generate_backend_url(
@@ -188,7 +189,7 @@ def get_stack(
     stack_name: str,
     pulumi_program: PulumiFn,
     stack_config: dict[str, Any],  # pyrefly: ignore[explicit-any] # values are a mix of str and ConfigValue, and Pulumi's StackSettings.config is itself typed dict[str, Any]
-    aws_home_region: str = "us-east-1",
+    aws_home_region: str = DEFAULT_AWS_HOME_REGION,
     create_if_missing: bool = True,
 ) -> Stack:
     env = get_env_from_cli_input(stack_name)

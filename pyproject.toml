@@ -42,6 +42,7 @@ dev = [
     "boto3-stubs[all]>=1.43.103",
     "pytest-mock>=3.16.0",
     "faker>=40.44.0",
+    "moto[ssm]>=5.2.5",
 
 
     # Managed by upstream template
