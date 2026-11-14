@@ -23,6 +23,7 @@ from ephemeral_pulumi_deploy.cli import run_cli
 
 arbitrary_stack_name = str(uuid4())
 ARGPARSE_USAGE_ERROR_EXIT_CODE = 2
+# Retyped rather than imported from utils: infrastructure outside this repo provisions these SSM parameters, so an accidental rename in utils must fail these tests instead of silently changing both sides.
 ORG_MANAGED_STATE_BUCKET_PARAMETER = "/org-managed/infra-state-bucket-name"
 ORG_MANAGED_STATE_KMS_KEY_PARAMETER = "/org-managed/infra-state-kms-key-arn"
 

@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 PROTECTED_ENVS = ("stag", "staging", "prod", "production")
 RESOURCE_SUFFIX_DELIMITER = "--"
 DEFAULT_AWS_HOME_REGION = "us-east-1"
+ORG_MANAGED_STATE_BUCKET_PARAMETER = "/org-managed/infra-state-bucket-name"
+ORG_MANAGED_STATE_KMS_KEY_PARAMETER = "/org-managed/infra-state-kms-key-arn"
 
 
 def generate_backend_url(
@@ -207,12 +209,12 @@ def get_stack(
     # account_id is a `str` when returned from `boto` and ConfigValue stores a `str`. However it is somehow an `int` when fetched back by get_config.
     # This is a problem when the account_id is prefixed with zeros.
     stack_config["proj:aws_account_id"] = ConfigValue(value=account_id)
-    backend_bucket_param = ssm_client.get_parameter(Name="/org-managed/infra-state-bucket-name")["Parameter"]
+    backend_bucket_param = ssm_client.get_parameter(Name=ORG_MANAGED_STATE_BUCKET_PARAMETER)["Parameter"]
     assert "Value" in backend_bucket_param, f"Expected 'Value' in {backend_bucket_param}"
     backend_bucket = backend_bucket_param["Value"]
     stack_config["proj:backend_bucket_name"] = ConfigValue(value=backend_bucket)
 
-    kms_key_id_param = ssm_client.get_parameter(Name="/org-managed/infra-state-kms-key-arn")["Parameter"]
+    kms_key_id_param = ssm_client.get_parameter(Name=ORG_MANAGED_STATE_KMS_KEY_PARAMETER)["Parameter"]
     assert "Value" in kms_key_id_param, f"Expected 'Value' in {kms_key_id_param}"
     kms_key_id = kms_key_id_param["Value"]
     stack_config["proj:kms_key_id"] = ConfigValue(value=kms_key_id)
