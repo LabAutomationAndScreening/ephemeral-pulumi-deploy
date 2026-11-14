@@ -1,6 +1,7 @@
 import json
 import logging
 import sys
+from unittest.mock import ANY
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -345,13 +346,12 @@ class TestGivenNoStackWithRequestedName:
         self.mocker = mocker
         self.capsys = capsys
         self.caplog = caplog
-        self.stack_name = str(uuid4())
-        self.stack_config: dict[str, object] = {
+        self.stack_config = {
             "proj:pulumi_project_name": faker.slug(),
             "proj:github_repo_name": faker.slug(),
         }
         _patch_aws_account_lookups(mocker, faker)
-        _ = mocker.patch.object(
+        self.select_stack_spy = mocker.patch.object(
             utils_module,
             utils_module.select_stack.__name__,
             autospec=True,
@@ -364,7 +364,7 @@ class TestGivenNoStackWithRequestedName:
         )
 
     def test_When_outputs__Then_exits_one_logging_error_naming_stack_without_printing_or_creating_it(self):
-        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", self.stack_name, "--outputs"])
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs"])
 
         with pytest.raises(SystemExit, match="1") as exc_info:
             run_cli(stack_config=self.stack_config, pulumi_program=MagicMock())
@@ -374,6 +374,29 @@ class TestGivenNoStackWithRequestedName:
 
         assert exc_info.value.code == 1
         assert len(error_messages) == 1
-        assert self.stack_name in error_messages[0]
+        assert arbitrary_stack_name in error_messages[0]
         assert stdout == ""
         self.create_or_select_stack_spy.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "action_flags",
+        [
+            pytest.param(["--up"], id="up"),
+            pytest.param(["--preview"], id="preview"),
+            pytest.param(["--refresh"], id="standalone-refresh"),
+            pytest.param([], id="no-action-flag-defaults-to-preview"),
+        ],
+    )
+    def test_When_action_that_deploys_or_inspects_infrastructure__Then_stack_is_created(self, action_flags: list[str]):
+        pulumi_program = MagicMock()
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, *action_flags])
+
+        run_cli(stack_config=self.stack_config, pulumi_program=pulumi_program)
+
+        self.create_or_select_stack_spy.assert_called_once_with(
+            arbitrary_stack_name,
+            project_name=self.stack_config["proj:pulumi_project_name"],
+            program=pulumi_program,
+            opts=ANY,
+        )
+        self.select_stack_spy.assert_not_called()
