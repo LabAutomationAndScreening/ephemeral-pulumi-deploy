@@ -261,7 +261,7 @@ class TestGivenStackWithPlainAndSecretOutputs:
             },
         )
 
-    def test_When_outputs_with_json__Then_prints_single_json_object_with_secrets_masked(self):
+    def test_When_outputs_with_json__Then_prints_single_line_json_object_with_secrets_masked(self):
         _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
 
         with pytest.raises(SystemExit, match="0") as exc_info:
@@ -270,6 +270,7 @@ class TestGivenStackWithPlainAndSecretOutputs:
         stdout = self.capsys.readouterr().out
 
         assert exc_info.value.code == 0
+        assert len(stdout.splitlines()) == 1
         assert json.loads(stdout) == {self.plain_key: self.plain_value, self.secret_key: "[secret]"}
         assert self.secret_value not in stdout
 
