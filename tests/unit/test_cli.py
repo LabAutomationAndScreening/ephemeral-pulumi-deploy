@@ -183,50 +183,6 @@ def test_slash_in_stack_name_is_replaced_with_dash(mocker: MockerFixture):
     assert actual_stack_name == "feature-my-branch"
 
 
-def test_outputs_does_not_invoke_stack_operations(mocker: MockerFixture):
-    _patch_stack_with_outputs(mocker, {})
-    up_spy = mocker.patch.object(Stack, Stack.up.__name__, autospec=True)
-    preview_spy = mocker.patch.object(Stack, Stack.preview.__name__, autospec=True)
-    refresh_spy = mocker.patch.object(Stack, Stack.refresh.__name__, autospec=True)
-    destroy_spy = mocker.patch.object(Stack, Stack.destroy.__name__, autospec=True)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--outputs"])
-
-    with pytest.raises(SystemExit, match="0"):
-        run_cli(stack_config={}, pulumi_program=MagicMock())
-
-    up_spy.assert_not_called()
-    preview_spy.assert_not_called()
-    refresh_spy.assert_not_called()
-    destroy_spy.assert_not_called()
-
-
-def test_outputs_prints_values_and_masks_secrets(mocker: MockerFixture, capsys: pytest.CaptureFixture[str]):
-    outputs = {"greeting": OutputValue(value="hello", secret=False), "token": OutputValue(value="s3cr3t", secret=True)}
-    _patch_stack_with_outputs(mocker, outputs)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--outputs"])
-
-    with pytest.raises(SystemExit, match="0") as exc_info:
-        run_cli(stack_config={}, pulumi_program=MagicMock())
-
-    assert exc_info.value.code == 0
-    captured = capsys.readouterr()
-    assert "greeting: hello" in captured.out
-    assert "token: [secret]" in captured.out
-    assert "s3cr3t" not in captured.out
-
-
-def test_outputs_with_show_secrets_reveals_secret_values(mocker: MockerFixture, capsys: pytest.CaptureFixture[str]):
-    outputs = {"token": OutputValue(value="s3cr3t", secret=True)}
-    _patch_stack_with_outputs(mocker, outputs)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", "test-stack", "--outputs", "--show-secrets"])
-
-    with pytest.raises(SystemExit, match="0"):
-        run_cli(stack_config={}, pulumi_program=MagicMock())
-
-    captured = capsys.readouterr()
-    assert "token: s3cr3t" in captured.out
-
-
 def test_When_json_passed_without_outputs__Then_usage_error_names_both_flags_before_stack_is_loaded(
     mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
 ):
@@ -260,6 +216,37 @@ class TestGivenStackWithPlainAndSecretOutputs:
                 self.secret_key: OutputValue(value=self.secret_value, secret=True),
             },
         )
+
+    def test_When_outputs__Then_prints_one_line_per_output_with_secrets_masked_without_stack_operations(self):
+        up_spy = self.mocker.patch.object(Stack, Stack.up.__name__, autospec=True)
+        preview_spy = self.mocker.patch.object(Stack, Stack.preview.__name__, autospec=True)
+        refresh_spy = self.mocker.patch.object(Stack, Stack.refresh.__name__, autospec=True)
+        destroy_spy = self.mocker.patch.object(Stack, Stack.destroy.__name__, autospec=True)
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs"])
+
+        with pytest.raises(SystemExit, match="0") as exc_info:
+            run_cli(stack_config={}, pulumi_program=MagicMock())
+
+        stdout = self.capsys.readouterr().out
+
+        assert exc_info.value.code == 0
+        assert stdout == f"{self.plain_key}: {self.plain_value}\n{self.secret_key}: [secret]\n"
+        up_spy.assert_not_called()
+        preview_spy.assert_not_called()
+        refresh_spy.assert_not_called()
+        destroy_spy.assert_not_called()
+
+    def test_When_outputs_with_show_secrets__Then_secret_values_are_revealed(self):
+        _ = self.mocker.patch.object(
+            sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--show-secrets"]
+        )
+
+        with pytest.raises(SystemExit, match="0"):
+            run_cli(stack_config={}, pulumi_program=MagicMock())
+
+        stdout = self.capsys.readouterr().out
+
+        assert stdout == f"{self.plain_key}: {self.plain_value}\n{self.secret_key}: {self.secret_value}\n"
 
     def test_When_outputs_with_json__Then_prints_single_line_json_object_with_secrets_masked_without_stack_operations(
         self,
