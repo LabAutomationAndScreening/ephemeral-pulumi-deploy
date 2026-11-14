@@ -361,6 +361,7 @@ class TestGivenNoStackWithRequestedName:
             pytest.param(["--outputs"], id="outputs-human-readable-listing"),
             pytest.param(["--outputs", "--json"], id="outputs-json-so-callers-never-parse-an-empty-object"),
             pytest.param(["--cancel"], id="cancel"),
+            pytest.param(["--destroy"], id="destroy"),
         ],
     )
     def test_When_action_requiring_prior_deploy__Then_exits_one_logging_error_naming_stack_without_printing_or_creating_it(

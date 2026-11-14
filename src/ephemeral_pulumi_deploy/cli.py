@@ -53,6 +53,8 @@ def _action_is_valid_before_first_deploy(args: argparse.Namespace) -> bool:
         return False
     if args.cancel:
         return False
+    if args.destroy:
+        return False
     return True
 
 
