@@ -1,20 +1,31 @@
 import json
+import logging
 import sys
+from collections.abc import Iterator
+from unittest.mock import ANY
 from unittest.mock import MagicMock
 from uuid import uuid4
 
+import boto3
 import pytest
 from faker import Faker
+from moto import mock_aws
+from pulumi.automation import CommandResult
 from pulumi.automation import LocalWorkspace
 from pulumi.automation import OutputValue
 from pulumi.automation import Stack
+from pulumi.automation import StackNotFoundError
 from pytest_mock import MockerFixture
 
 import ephemeral_pulumi_deploy.cli as cli_module
+import ephemeral_pulumi_deploy.utils as utils_module
 from ephemeral_pulumi_deploy.cli import run_cli
 
 arbitrary_stack_name = str(uuid4())
 ARGPARSE_USAGE_ERROR_EXIT_CODE = 2
+# Retyped rather than imported from utils: infrastructure outside this repo provisions these SSM parameters, so an accidental rename in utils must fail these tests instead of silently changing both sides.
+ORG_MANAGED_STATE_BUCKET_PARAMETER = "/org-managed/infra-state-bucket-name"
+ORG_MANAGED_STATE_KMS_KEY_PARAMETER = "/org-managed/infra-state-kms-key-arn"
 
 
 def _select_stack(mocker: MockerFixture) -> Stack:
@@ -109,13 +120,20 @@ def test_default_no_flags_calls_preview_with_refresh_false(mocker: MockerFixture
     refresh_spy.assert_not_called()
 
 
-def test_destroy_on_non_protected_stack_destroys_and_removes(mocker: MockerFixture):
+@pytest.mark.parametrize(
+    "extra_flags",
+    [
+        pytest.param([], id="plain-destroy"),
+        pytest.param(["--ignore-missing-stack"], id="ignore-missing-stack-only-matters-when-stack-is-absent"),
+    ],
+)
+def test_destroy_on_non_protected_stack_destroys_and_removes(mocker: MockerFixture, extra_flags: list[str]):
     workspace = mocker.create_autospec(LocalWorkspace, instance=True)
     remove_stack_spy = mocker.patch.object(workspace, LocalWorkspace.remove_stack.__name__)
     stack = Stack.select(arbitrary_stack_name, workspace)
     destroy_spy = mocker.patch.object(Stack, Stack.destroy.__name__, autospec=True)
     _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--destroy"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--destroy", *extra_flags])
 
     with pytest.raises(SystemExit, match="0") as exc_info:
         run_cli(stack_config={}, pulumi_program=MagicMock())
@@ -183,11 +201,18 @@ def test_slash_in_stack_name_is_replaced_with_dash(mocker: MockerFixture):
     assert actual_stack_name == "feature-my-branch"
 
 
-def test_When_json_passed_without_outputs__Then_usage_error_names_both_flags_before_stack_is_loaded(
-    mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
+@pytest.mark.parametrize(
+    ("modifier_flag", "required_action_flag"),
+    [
+        pytest.param("--json", "--outputs", id="json-requires-outputs"),
+        pytest.param("--ignore-missing-stack", "--destroy", id="ignore-missing-stack-requires-destroy"),
+    ],
+)
+def test_When_modifier_flag_passed_without_its_action__Then_usage_error_names_both_flags_before_stack_is_loaded(
+    mocker: MockerFixture, capsys: pytest.CaptureFixture[str], modifier_flag: str, required_action_flag: str
 ):
     get_stack_spy = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--json"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, modifier_flag])
 
     with pytest.raises(SystemExit, match=str(ARGPARSE_USAGE_ERROR_EXIT_CODE)) as exc_info:
         run_cli(stack_config={}, pulumi_program=MagicMock())
@@ -195,8 +220,8 @@ def test_When_json_passed_without_outputs__Then_usage_error_names_both_flags_bef
     error_line = capsys.readouterr().err.strip().splitlines()[-1]
 
     assert exc_info.value.code == ARGPARSE_USAGE_ERROR_EXIT_CODE
-    assert "--json" in error_line
-    assert "--outputs" in error_line
+    assert modifier_flag in error_line
+    assert required_action_flag in error_line
     get_stack_spy.assert_not_called()
 
 
@@ -320,3 +345,113 @@ def test_Given_stack_without_outputs__When_outputs_with_json__Then_prints_empty_
     stdout = capsys.readouterr().out
 
     assert stdout == "{}\n"
+
+
+@pytest.fixture
+def fake_org_managed_aws_account(monkeypatch: pytest.MonkeyPatch, faker: Faker) -> Iterator[None]:
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", utils_module.DEFAULT_AWS_HOME_REGION)
+    with mock_aws():
+        ssm_client = boto3.client("ssm", region_name=utils_module.DEFAULT_AWS_HOME_REGION)
+        _ = ssm_client.put_parameter(Name=ORG_MANAGED_STATE_BUCKET_PARAMETER, Value=faker.slug(), Type="String")
+        _ = ssm_client.put_parameter(Name=ORG_MANAGED_STATE_KMS_KEY_PARAMETER, Value=faker.pystr(), Type="String")
+        yield
+
+
+def _cli_log_messages(caplog: pytest.LogCaptureFixture, level: int) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == cli_module.logger.name and record.levelno == level
+    ]
+
+
+@pytest.mark.usefixtures(fake_org_managed_aws_account.__name__)
+class TestGivenNoStackWithRequestedName:
+    @pytest.fixture(autouse=True)
+    def _setup(self, mocker: MockerFixture, faker: Faker):
+        self.mocker = mocker
+        self.stack_config = {
+            "proj:pulumi_project_name": faker.slug(),
+            "proj:github_repo_name": faker.slug(),
+        }
+        self.select_stack_spy = mocker.patch.object(
+            utils_module,
+            utils_module.select_stack.__name__,
+            autospec=True,
+            side_effect=StackNotFoundError(
+                CommandResult(stdout=faker.sentence(), stderr=faker.sentence(), code=faker.pyint(min_value=1))
+            ),
+        )
+        self.create_or_select_stack_spy = mocker.patch.object(
+            utils_module, utils_module.create_or_select_stack.__name__, autospec=True
+        )
+
+    @pytest.mark.parametrize(
+        "action_flags",
+        [
+            pytest.param(["--outputs"], id="outputs-human-readable-listing"),
+            pytest.param(["--outputs", "--json"], id="outputs-json-so-callers-never-parse-an-empty-object"),
+            pytest.param(["--cancel"], id="cancel"),
+            pytest.param(["--destroy"], id="destroy"),
+        ],
+    )
+    def test_When_action_requiring_prior_deploy__Then_exits_one_logging_error_naming_stack_without_printing_or_creating_it(
+        self, action_flags: list[str], capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
+    ):
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, *action_flags])
+
+        with pytest.raises(SystemExit, match="1") as exc_info:
+            run_cli(stack_config=self.stack_config, pulumi_program=MagicMock())
+
+        stdout = capsys.readouterr().out
+        error_messages = _cli_log_messages(caplog, logging.ERROR)
+
+        assert exc_info.value.code == 1
+        assert len(error_messages) == 1
+        assert arbitrary_stack_name in error_messages[0]
+        assert stdout == ""
+        self.create_or_select_stack_spy.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "action_flags",
+        [
+            pytest.param(["--up"], id="up"),
+            pytest.param(["--preview"], id="preview"),
+            pytest.param(["--refresh"], id="standalone-refresh"),
+            pytest.param([], id="no-action-flag-defaults-to-preview"),
+        ],
+    )
+    def test_When_action_valid_before_first_deploy__Then_stack_is_created(self, action_flags: list[str]):
+        pulumi_program = MagicMock()
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, *action_flags])
+
+        run_cli(stack_config=self.stack_config, pulumi_program=pulumi_program)
+
+        self.create_or_select_stack_spy.assert_called_once_with(
+            arbitrary_stack_name,
+            project_name=self.stack_config["proj:pulumi_project_name"],
+            program=pulumi_program,
+            opts=ANY,
+        )
+        self.select_stack_spy.assert_not_called()
+
+    def test_When_destroy_with_ignore_missing_stack__Then_exits_zero_logging_info_naming_stack_without_creating_it(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        _ = self.mocker.patch.object(
+            sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--destroy", "--ignore-missing-stack"]
+        )
+
+        with pytest.raises(SystemExit, match="0") as exc_info:
+            run_cli(stack_config=self.stack_config, pulumi_program=MagicMock())
+
+        info_messages = _cli_log_messages(caplog, logging.INFO)
+
+        assert exc_info.value.code == 0
+        assert len(info_messages) == 1
+        assert arbitrary_stack_name in info_messages[0]
+        self.create_or_select_stack_spy.assert_not_called()

@@ -16,12 +16,16 @@ from pulumi.automation import PulumiFn
 from pulumi.automation import Stack
 from pulumi.automation import StackSettings
 from pulumi.automation import create_or_select_stack
+from pulumi.automation import select_stack
 from pulumi.automation._stack import BaseResult
 from pulumi_aws_native import TagArgs
 
 logger = logging.getLogger(__name__)
 PROTECTED_ENVS = ("stag", "staging", "prod", "production")
 RESOURCE_SUFFIX_DELIMITER = "--"
+DEFAULT_AWS_HOME_REGION = "us-east-1"
+ORG_MANAGED_STATE_BUCKET_PARAMETER = "/org-managed/infra-state-bucket-name"
+ORG_MANAGED_STATE_KMS_KEY_PARAMETER = "/org-managed/infra-state-kms-key-arn"
 
 
 def generate_backend_url(
@@ -187,7 +191,8 @@ def get_stack(
     stack_name: str,
     pulumi_program: PulumiFn,
     stack_config: dict[str, Any],  # pyrefly: ignore[explicit-any] # values are a mix of str and ConfigValue, and Pulumi's StackSettings.config is itself typed dict[str, Any]
-    aws_home_region: str = "us-east-1",
+    aws_home_region: str = DEFAULT_AWS_HOME_REGION,
+    create_if_missing: bool = True,
 ) -> Stack:
     env = get_env_from_cli_input(stack_name)
     project_name = stack_config["proj:pulumi_project_name"]
@@ -204,12 +209,12 @@ def get_stack(
     # account_id is a `str` when returned from `boto` and ConfigValue stores a `str`. However it is somehow an `int` when fetched back by get_config.
     # This is a problem when the account_id is prefixed with zeros.
     stack_config["proj:aws_account_id"] = ConfigValue(value=account_id)
-    backend_bucket_param = ssm_client.get_parameter(Name="/org-managed/infra-state-bucket-name")["Parameter"]
+    backend_bucket_param = ssm_client.get_parameter(Name=ORG_MANAGED_STATE_BUCKET_PARAMETER)["Parameter"]
     assert "Value" in backend_bucket_param, f"Expected 'Value' in {backend_bucket_param}"
     backend_bucket = backend_bucket_param["Value"]
     stack_config["proj:backend_bucket_name"] = ConfigValue(value=backend_bucket)
 
-    kms_key_id_param = ssm_client.get_parameter(Name="/org-managed/infra-state-kms-key-arn")["Parameter"]
+    kms_key_id_param = ssm_client.get_parameter(Name=ORG_MANAGED_STATE_KMS_KEY_PARAMETER)["Parameter"]
     assert "Value" in kms_key_id_param, f"Expected 'Value' in {kms_key_id_param}"
     kms_key_id = kms_key_id_param["Value"]
     stack_config["proj:kms_key_id"] = ConfigValue(value=kms_key_id)
@@ -238,7 +243,14 @@ def get_stack(
         stack_settings={stack_name: stack_settings},
     )
 
-    return create_or_select_stack(
+    if create_if_missing:
+        return create_or_select_stack(
+            stack_name,
+            project_name=project_name,
+            program=pulumi_program,
+            opts=workspace_options,
+        )
+    return select_stack(
         stack_name,
         project_name=project_name,
         program=pulumi_program,
@@ -291,4 +303,9 @@ _ = parser.add_argument(
 )
 _ = parser.add_argument(
     "--json", action="store_true", help="Print stack outputs as a single JSON object (use with --outputs)"
+)
+_ = parser.add_argument(
+    "--ignore-missing-stack",
+    action="store_true",
+    help="Exit 0 instead of failing when the stack does not exist (use with --destroy)",
 )
