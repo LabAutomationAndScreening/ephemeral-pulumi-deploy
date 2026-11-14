@@ -44,7 +44,7 @@ def _print_outputs(*, stack: Stack, show_secrets: bool, as_json: bool) -> None:
         print(json.dumps(printable_outputs))  # noqa: T201 # stdout is the machine-readable channel consumed by callers
         return
     for key, value in printable_outputs.items():
-        print(f"{key}: {value}")  # noqa: T201
+        print(f"{key}: {value}")  # noqa: T201 # stdout is the human-readable listing for the person running the CLI
 
 
 # TODO: consider accepting Mapping[str, object] so callers can pass dicts with narrower value types. get_stack would then need to write its injected keys into a copy instead of the caller's dict, and narrow the values it reads to str.
