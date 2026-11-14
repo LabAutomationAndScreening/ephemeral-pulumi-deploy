@@ -30,6 +30,9 @@ def _parse_args() -> argparse.Namespace:
     if args.json:
         if not args.outputs:
             parser.error("--json requires --outputs")
+    if args.ignore_missing_stack:
+        if not args.destroy:
+            parser.error("--ignore-missing-stack requires --destroy")
     return args
 
 

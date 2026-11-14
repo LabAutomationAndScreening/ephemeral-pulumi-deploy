@@ -189,11 +189,18 @@ def test_slash_in_stack_name_is_replaced_with_dash(mocker: MockerFixture):
     assert actual_stack_name == "feature-my-branch"
 
 
-def test_When_json_passed_without_outputs__Then_usage_error_names_both_flags_before_stack_is_loaded(
-    mocker: MockerFixture, capsys: pytest.CaptureFixture[str]
+@pytest.mark.parametrize(
+    ("modifier_flag", "required_action_flag"),
+    [
+        pytest.param("--json", "--outputs", id="json-requires-outputs"),
+        pytest.param("--ignore-missing-stack", "--destroy", id="ignore-missing-stack-requires-destroy"),
+    ],
+)
+def test_When_modifier_flag_passed_without_its_action__Then_usage_error_names_both_flags_before_stack_is_loaded(
+    mocker: MockerFixture, capsys: pytest.CaptureFixture[str], modifier_flag: str, required_action_flag: str
 ):
     get_stack_spy = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--json"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, modifier_flag])
 
     with pytest.raises(SystemExit, match=str(ARGPARSE_USAGE_ERROR_EXIT_CODE)) as exc_info:
         run_cli(stack_config={}, pulumi_program=MagicMock())
@@ -201,8 +208,8 @@ def test_When_json_passed_without_outputs__Then_usage_error_names_both_flags_bef
     error_line = capsys.readouterr().err.strip().splitlines()[-1]
 
     assert exc_info.value.code == ARGPARSE_USAGE_ERROR_EXIT_CODE
-    assert "--json" in error_line
-    assert "--outputs" in error_line
+    assert modifier_flag in error_line
+    assert required_action_flag in error_line
     get_stack_spy.assert_not_called()
 
 
