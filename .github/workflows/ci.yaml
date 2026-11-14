@@ -188,6 +188,8 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: LabAutomationAndScreening/ephemeral-pulumi-deploy
 
+      - uses: ./.github/actions/confirm-git-tree-clean
+
 
   build:
     needs:
@@ -220,6 +222,8 @@ jobs:
           name: python-package-distributions
           path: dist/
           if-no-files-found: error
+
+      - uses: ./.github/actions/confirm-git-tree-clean
 
 
 
