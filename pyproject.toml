@@ -41,6 +41,7 @@ dev = [
     # Specific to this repository
     "boto3-stubs[all]>=1.43.103",
     "pytest-mock>=3.16.0",
+    "faker>=40.44.0",
 
 
     # Managed by upstream template
