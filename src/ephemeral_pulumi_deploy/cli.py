@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import sys
@@ -6,6 +7,7 @@ from collections.abc import Callable
 from typing import Any
 
 from pulumi.automation import PulumiFn
+from pulumi.automation import Stack
 from typing_extensions import TypedDict
 
 from .utils import PROTECTED_ENVS
@@ -28,6 +30,21 @@ def _parse_args() -> argparse.Namespace:
         if not args.outputs:
             parser.error("--json requires --outputs")
     return args
+
+
+def _print_outputs(*, stack: Stack, show_secrets: bool, as_json: bool) -> None:
+    printable_outputs: dict[str, object] = {}
+    for key, output in stack.outputs().items():
+        value = output.value
+        if output.secret:
+            if not show_secrets:
+                value = "[secret]"
+        printable_outputs[key] = value
+    if as_json:
+        print(json.dumps(printable_outputs))  # noqa: T201 # stdout is the machine-readable channel consumed by callers
+        return
+    for key, value in printable_outputs.items():
+        print(f"{key}: {value}")  # noqa: T201
 
 
 # TODO: consider accepting Mapping[str, object] so callers can pass dicts with narrower value types. get_stack would then need to write its injected keys into a copy instead of the caller's dict, and narrow the values it reads to str.
@@ -70,10 +87,7 @@ def run_cli(
         sys.exit(0)
 
     if args.outputs:
-        outputs = stack.outputs()
-        for key, output in outputs.items():
-            value = output.value if (not output.secret or args.show_secrets) else "[secret]"
-            print(f"{key}: {value}")  # noqa: T201
+        _print_outputs(stack=stack, show_secrets=args.show_secrets, as_json=args.json)
         sys.exit(0)
 
     up_and_preview_kwargs: StackKwargs = {

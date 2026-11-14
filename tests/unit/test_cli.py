@@ -1,8 +1,10 @@
+import json
 import sys
 from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from faker import Faker
 from pulumi.automation import LocalWorkspace
 from pulumi.automation import OutputValue
 from pulumi.automation import Stack
@@ -240,3 +242,29 @@ def test_When_json_passed_without_outputs__Then_usage_error_names_both_flags_bef
     assert "--json" in error_line
     assert "--outputs" in error_line
     get_stack_spy.assert_not_called()
+
+
+def test_When_outputs_with_json__Then_prints_single_json_object_with_secrets_masked(
+    mocker: MockerFixture, capsys: pytest.CaptureFixture[str], faker: Faker
+):
+    plain_key = faker.unique.pystr()
+    plain_value = faker.sentence()
+    secret_key = faker.unique.pystr()
+    secret_value = faker.password()
+    outputs = {
+        plain_key: OutputValue(value=plain_value, secret=False),
+        secret_key: OutputValue(value=secret_value, secret=True),
+    }
+    stack = _select_stack(mocker)
+    _ = mocker.patch.object(Stack, Stack.outputs.__name__, autospec=True, return_value=outputs)
+    _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs", "--json"])
+
+    with pytest.raises(SystemExit, match="0") as exc_info:
+        run_cli(stack_config={}, pulumi_program=MagicMock())
+
+    stdout = capsys.readouterr().out
+
+    assert exc_info.value.code == 0
+    assert json.loads(stdout) == {plain_key: plain_value, secret_key: "[secret]"}
+    assert secret_value not in stdout
