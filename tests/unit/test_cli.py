@@ -355,10 +355,17 @@ class TestGivenNoStackWithRequestedName:
             utils_module, utils_module.create_or_select_stack.__name__, autospec=True
         )
 
+    @pytest.mark.parametrize(
+        "output_flags",
+        [
+            pytest.param(["--outputs"], id="human-readable-listing"),
+            pytest.param(["--outputs", "--json"], id="json-so-callers-never-parse-an-empty-object"),
+        ],
+    )
     def test_When_outputs__Then_exits_one_logging_error_naming_stack_without_printing_or_creating_it(
-        self, capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
+        self, output_flags: list[str], capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
     ):
-        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--outputs"])
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, *output_flags])
 
         with pytest.raises(SystemExit, match="1") as exc_info:
             run_cli(stack_config=self.stack_config, pulumi_program=MagicMock())
