@@ -356,16 +356,17 @@ class TestGivenNoStackWithRequestedName:
         )
 
     @pytest.mark.parametrize(
-        "output_flags",
+        "action_flags",
         [
-            pytest.param(["--outputs"], id="human-readable-listing"),
-            pytest.param(["--outputs", "--json"], id="json-so-callers-never-parse-an-empty-object"),
+            pytest.param(["--outputs"], id="outputs-human-readable-listing"),
+            pytest.param(["--outputs", "--json"], id="outputs-json-so-callers-never-parse-an-empty-object"),
+            pytest.param(["--cancel"], id="cancel"),
         ],
     )
-    def test_When_outputs__Then_exits_one_logging_error_naming_stack_without_printing_or_creating_it(
-        self, output_flags: list[str], capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
+    def test_When_action_requiring_prior_deploy__Then_exits_one_logging_error_naming_stack_without_printing_or_creating_it(
+        self, action_flags: list[str], capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
     ):
-        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, *output_flags])
+        _ = self.mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, *action_flags])
 
         with pytest.raises(SystemExit, match="1") as exc_info:
             run_cli(stack_config=self.stack_config, pulumi_program=MagicMock())

@@ -48,6 +48,14 @@ def _print_outputs(*, stack: Stack, show_secrets: bool, as_json: bool) -> None:
         print(f"{key}: {value}")  # noqa: T201 # stdout is the human-readable listing for the person running the CLI
 
 
+def _action_is_valid_before_first_deploy(args: argparse.Namespace) -> bool:
+    if args.outputs:
+        return False
+    if args.cancel:
+        return False
+    return True
+
+
 def _load_stack(
     *,
     stack_name: str,
@@ -88,14 +96,11 @@ def run_cli(
         logger.error(f"Stack {stack_name} can't be destroyed, because it's not a test/dev stack.")
         sys.exit(1)
 
-    create_if_missing = True
-    if args.outputs:
-        create_if_missing = False
     stack = _load_stack(
         stack_name=stack_name,
         pulumi_program=pulumi_program,
         stack_config=stack_config,
-        create_if_missing=create_if_missing,
+        create_if_missing=_action_is_valid_before_first_deploy(args),
     )
 
     if args.cancel:
