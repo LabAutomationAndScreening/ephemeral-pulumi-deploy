@@ -115,13 +115,20 @@ def test_default_no_flags_calls_preview_with_refresh_false(mocker: MockerFixture
     refresh_spy.assert_not_called()
 
 
-def test_destroy_on_non_protected_stack_destroys_and_removes(mocker: MockerFixture):
+@pytest.mark.parametrize(
+    "extra_flags",
+    [
+        pytest.param([], id="plain-destroy"),
+        pytest.param(["--ignore-missing-stack"], id="ignore-missing-stack-only-matters-when-stack-is-absent"),
+    ],
+)
+def test_destroy_on_non_protected_stack_destroys_and_removes(mocker: MockerFixture, extra_flags: list[str]):
     workspace = mocker.create_autospec(LocalWorkspace, instance=True)
     remove_stack_spy = mocker.patch.object(workspace, LocalWorkspace.remove_stack.__name__)
     stack = Stack.select(arbitrary_stack_name, workspace)
     destroy_spy = mocker.patch.object(Stack, Stack.destroy.__name__, autospec=True)
     _ = mocker.patch.object(cli_module, cli_module.get_stack.__name__, autospec=True, return_value=stack)
-    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--destroy"])
+    _ = mocker.patch.object(sys, "argv", new=["cli", "--stack", arbitrary_stack_name, "--destroy", *extra_flags])
 
     with pytest.raises(SystemExit, match="0") as exc_info:
         run_cli(stack_config={}, pulumi_program=MagicMock())
